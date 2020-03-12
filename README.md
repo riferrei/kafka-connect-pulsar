@@ -112,7 +112,7 @@ This connector is highly customizable, and the table below explains the differen
 | max.total.receiver.queue.size.across.partitions | The max total receiver queue size across partitions | No | 50000 | N/A |
 | consumer.name | Consumer name | No | N/A | N/A |
 | ack.timeout.millis | Timeout of unacked messages | No | 0 | N/A |
-| tick.duration.millis | Subscription type | No | Exclusive | N/A |
+| tick.duration.millis | Subscription type | No | 1000 | N/A |
 | priority.level | Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode | No | 0 | N/A |
 | crypto.failure.action | Consumer should take action when it receives a message that can not be decrypted | No | FAIL | [FAIL, DISCARD, CONSUME] |
 | read.compacted | If enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic | No | false | N/A |
