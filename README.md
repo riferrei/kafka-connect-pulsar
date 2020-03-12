@@ -51,7 +51,7 @@ curl -X POST -H "Content-Type:application/json" -d @examples/basic-example.json 
 ```
 
 This will request the deployment of a new connector named `basic-example` that aims to read all messages stored in the topic `msgs`.
-THe connector will purposely read all messages from the Pulsar topic from the beginning, so any messages produced so far will be copied to Kafka.
+The connector will purposely read all messages from that Pulsar topic from the beginning, so any messages produced so far will be copied to Kafka.
 When that happens, Kafka will create a topic with the same name.
 
 ### 3 - Check the messages in Kafka
