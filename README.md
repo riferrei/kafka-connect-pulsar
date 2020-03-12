@@ -105,7 +105,7 @@ This connector is highly customizable, and the table below explains the differen
 | request.timeout.ms | Maximum duration for completing a request | No | 60000 | N/A |
 | initial.backoff.interval.nanos | Default duration for a backoff interval | No | 100 | N/A |
 | max.backoff.interval.nanos | Maximum duration for a backoff interval | No | 30 | N/A |
-| subscription.type | Subscription type | No | Exclusive | N/A |
+| subscription.type | Subscription type | No | Exclusive | [Exclusive, Shared, Failover, Key_Shared] |
 | receiver.queue.size | Size of a consumer's receiver queue | No | 1000 | N/A |
 | acknowledgements.group.time.micros | Group a consumer acknowledgment for a specified time | No | 100 | N/A |
 | negative.ack.redelivery.delay.micros | Delay to wait before redelivering messages that failed to be processed | No | 1 | N/A |
@@ -114,9 +114,9 @@ This connector is highly customizable, and the table below explains the differen
 | ack.timeout.millis | Timeout of unacked messages | No | 0 | N/A |
 | tick.duration.millis | Subscription type | No | Exclusive | N/A |
 | priority.level | Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode | No | 0 | N/A |
-| crypto.failure.action | Consumer should take action when it receives a message that can not be decrypted | No | FAIL | N/A |
+| crypto.failure.action | Consumer should take action when it receives a message that can not be decrypted | No | FAIL | [FAIL, DISCARD, CONSUME] |
 | read.compacted | If enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic | No | false | N/A |
-| subscription.initial.position | Initial position at which to set cursor when subscribing to a topic at first time | No | Latest | N/A |
+| subscription.initial.position | Initial position at which to set cursor when subscribing to a topic at first time | No | Latest | [Latest, Earliest] |
 | auto.update.partitions | If enabled, a consumer subscribes to partition increasement automatically | No | true | N/A |
 | replicate.subscription.state | If enabled, a subscription state is replicated to geo-replicated clusters | No | false | N/A |
 
