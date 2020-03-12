@@ -4,6 +4,15 @@
 # Log file
 *.log
 
+# VS Code
+.settings
+.classpath
+.project
+target
+
+# Connector
+connector
+
 # BlueJ files
 *.ctxt
 

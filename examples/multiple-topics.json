@@ -1,0 +1,9 @@
+{
+    "name" : "multiple-topics",
+    "config" : {
+      "connector.class" : "com.riferrei.kafka.connect.pulsar.PulsarSourceConnector",
+      "service.url": "pulsar://pulsar:6650",
+      "topic.whitelist": "orders, customers, products",
+      "tasks.max" : "3"
+    }
+}
