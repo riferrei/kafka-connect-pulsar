@@ -74,14 +74,15 @@ At this point you should have ten records being displayed, which means that the 
 
 ## Configuration reference
 
-This connector is highly customizable, and the table below explains the different knobs available.
+This connector is highly customizable, and the table below explains the different configurations available.
+Keep in mind that though the table says that the properties `topic.whitelist` and `topic.pattern` are mandatory, they are in fact mutually exclusive.
 
 | Configuration | Description | Mandatory? | Default | Possible Values
 | ----------- | ----------- | ------------- | ------------- | ------------- |
 | service.url | Service URL for the Pulsar service | Yes | N/A | N/A |
-| topic.whitelist | List of allowed topics to read from | No | N/A | N/A |
+| topic.whitelist | List of allowed topics to read from | Yes | N/A | N/A |
 | topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
-| topic.pattern | Topic pattern when subscribing to multiple topics | No | N/A | N/A |
+| topic.pattern | Topic pattern when subscribing to multiple topics | Yes | N/A | N/A |
 | subscription.name | The name of the consumer subscription | No | A random UUID if not specified | N/A |
 | batch.max.num.messages | Maximum number of messages per batch | No | 10 | N/A |
 | batch.max.num.bytes | Maximum number of bytes per batch | No | 1024 | N/A |
