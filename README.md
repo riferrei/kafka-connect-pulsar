@@ -11,7 +11,7 @@ The very first thing you need to do to start using this connector is build it. I
 - [Java 1.8+](https://openjdk.java.net/)
 - [Apache Maven](https://maven.apache.org/)
 
-Once you have that installed, go ahead and execute the folllowing command to generate the connector:
+After installing these dependencies, execute the folllowing command:
 
 ```bash
 mvn clean install
