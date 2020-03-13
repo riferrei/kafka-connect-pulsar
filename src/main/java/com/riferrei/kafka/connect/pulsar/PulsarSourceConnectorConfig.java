@@ -21,7 +21,10 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     // Basic Options
     public static final String SERVICE_URL_CONFIG = "service.url";
-    private static final String SERVICE_URL_DOC = "Service URL for the Pulsar service";
+    private static final String SERVICE_URL_DOC = "URL for the Pulsar cluster service";
+
+    public static final String SERVICE_HTTP_URL_CONFIG = "service.http.url";
+    private static final String SERVICE_HTTP_URL_DOC = "URL for the Pulsar admin service";
 
     public static final String TOPIC_WHITELIST_CONFIG = "topic.whitelist";
     private static final String TOPIC_WHITELIST_DOC = "List of allowed topics to read from";
@@ -217,6 +220,11 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
             Type.STRING,
             Importance.HIGH,
             SERVICE_URL_DOC)
+        .define(
+            SERVICE_HTTP_URL_CONFIG,
+            Type.STRING,
+            Importance.HIGH,
+            SERVICE_HTTP_URL_DOC)
         .define(
             TOPIC_WHITELIST_CONFIG,
             Type.LIST,

@@ -10,6 +10,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -27,6 +30,7 @@ public class PulsarSourceTask extends SourceTask {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarSourceTask.class);
 
+    private List<String> partitionedTopics;
     private PulsarSourceConnectorConfig config;
     private PulsarClient client;
     private Consumer<byte[]> consumer;
@@ -38,6 +42,7 @@ public class PulsarSourceTask extends SourceTask {
 
     @Override
     public void start(Map<String, String> properties) {
+        partitionedTopics = getPartitionedTopics(properties);
         config = new PulsarSourceConnectorConfig(properties);
         String serviceUrl = config.getString(PulsarSourceConnectorConfig.SERVICE_URL_CONFIG);
         String subscriptionName = config.getString(PulsarSourceConnectorConfig.SUBSCRIPTION_NAME_CONFIG);
@@ -79,9 +84,33 @@ public class PulsarSourceTask extends SourceTask {
         }
     }
 
+    private List<String> getPartitionedTopics(Map<String, String> properties) {
+        List<String> partitionedTopics = new ArrayList<>();
+        List<String> topicNames = getTopicNames(properties);
+        String serviceHttpUrl = properties.get(SERVICE_HTTP_URL_CONFIG);
+        PulsarAdmin pulsarAdmin = null;
+        try {
+            pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(serviceHttpUrl)
+                .build();
+            Topics topics = pulsarAdmin.topics();
+            for (String topicName : topicNames) {
+                if (topics.getPartitionedTopicMetadata(topicName).partitions > 0) {
+                    partitionedTopics.add(topicName);
+                }
+            }
+        } catch (PulsarClientException | PulsarAdminException pe) {
+            if (log.isErrorEnabled()) {
+                log.error("Exception thrown during getPartitionedTopics(): ", pe);
+            }
+        } finally {
+            pulsarAdmin.close();
+        }
+        return partitionedTopics;
+    }
+
     private List<String> getTopicNames(Map<String, String> properties) {
         String topicNames = properties.get(PulsarSourceConnectorConfig.TOPIC_NAMES);
-        log.debug("getTopicNames(): %s", topicNames);
         String[] topicList = topicNames.split(",");
         List<String> topics = new ArrayList<>(topicList.length);
         for (String topic : topicList) {
@@ -172,25 +201,38 @@ public class PulsarSourceTask extends SourceTask {
     }
 
     private String getTopicName(String topicName) {
-        try {
-            URI topic = new URI(topicName);
-            String tnsValue = config.getString(TOPIC_NAMING_STRATEGY_CONFIG);
-            TopicNamingStrategyOptions tns = TopicNamingStrategyOptions.valueOf(tnsValue);
-            if (tns.equals(TopicNamingStrategyOptions.NameOnly)) {
-                String[] topicNameParts = topic.getPath().split("/");
-                topicName = topicNameParts[topicNameParts.length - 1];
-            } else if (tns.equals(TopicNamingStrategyOptions.FullyQualified)) {
-                StringBuilder fullyQualifiedTopic = new StringBuilder();
-                if (topic.getHost() != null && topic.getHost().length() > 0) { 
-                    fullyQualifiedTopic.append(topic.getHost());
-                }
-                fullyQualifiedTopic.append(topic.getPath().replaceAll("/", "-"));
-                topicName = fullyQualifiedTopic.toString();
+        // If the topic is partitioned then we need to
+        // remove the '-partition-n' suffix to avoid
+        // ending up with multiple topics in the Kafka
+        // side that ultimately represent only 1 topic.
+        for (String partitionedTopic : partitionedTopics) {
+            if (topicName.contains(partitionedTopic) &&
+                topicName.contains("-partition-")) {
+                topicName = topicName.replaceAll("-partition-\\d+", "");
+                break;
             }
+        }
+        URI topic = null;
+        try {
+            topic = new URI(topicName);
         } catch (Exception ex) {
             if (log.isErrorEnabled()) {
-                log.error("Exception thrown while parsing the topic name: ", ex);
+                log.error("Exception thrown while parsing the topic: ", ex);
             }
+            return null;
+        }
+        String tnsValue = config.getString(TOPIC_NAMING_STRATEGY_CONFIG);
+        TopicNamingStrategyOptions tns = TopicNamingStrategyOptions.valueOf(tnsValue);
+        if (tns.equals(TopicNamingStrategyOptions.NameOnly)) {
+            String[] topicNameParts = topic.getPath().split("/");
+            topicName = topicNameParts[topicNameParts.length - 1];
+        } else if (tns.equals(TopicNamingStrategyOptions.FullyQualified)) {
+            StringBuilder fullyQualifiedTopic = new StringBuilder();
+            if (topic.getHost() != null && topic.getHost().length() > 0) { 
+                fullyQualifiedTopic.append(topic.getHost());
+            }
+            fullyQualifiedTopic.append(topic.getPath().replaceAll("/", "-"));
+            topicName = fullyQualifiedTopic.toString();
         }
         return topicName;
     }

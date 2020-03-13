@@ -3,6 +3,7 @@
     "config" : {
       "connector.class" : "com.riferrei.kafka.connect.pulsar.PulsarSourceConnector",
       "service.url": "pulsar://pulsar:6650",
+      "service.http.url": "http://pulsar:8080",
       "subscription.initial.position": "Earliest",
       "topic.whitelist": "msgs",
       "tasks.max" : "1"

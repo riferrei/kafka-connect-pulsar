@@ -79,7 +79,8 @@ Keep in mind that though the table says that the properties `topic.whitelist` an
 
 | Configuration | Description | Mandatory? | Default | Possible Values
 | ----------- | ----------- | ------------- | ------------- | ------------- |
-| service.url | Service URL for the Pulsar service | Yes | N/A | N/A |
+| service.url | URL for the Pulsar cluster service | Yes | N/A | N/A |
+| service.http.url | URL for the Pulsar admin service | Yes | N/A | N/A |
 | topic.whitelist | List of allowed topics to read from | Yes | N/A | N/A |
 | topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
 | topic.pattern | Topic pattern when subscribing to multiple topics | Yes | N/A | N/A |
