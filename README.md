@@ -40,7 +40,7 @@ Open a terminal to execute the following command:
 docker exec pulsar bin/pulsar-client produce msgs --messages "first five messages" --num-produce 5
 ```
 
-This will produce five messages to a topic names `msgs`.
+This will produce five messages to a topic named `msgs`.
 
 ### 2 - Install the connector
 
