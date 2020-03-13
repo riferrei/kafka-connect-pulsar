@@ -9,6 +9,7 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 
@@ -24,10 +25,15 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     public static final String TOPIC_WHITELIST_CONFIG = "topic.whitelist";
     private static final String TOPIC_WHITELIST_DOC = "List of allowed topics to read from";
+    private static final String TOPIC_WHITELIST_DEFAULT = null;
 
     public static final String TOPIC_BLACKLIST_CONFIG = "topic.blacklist";
     private static final String TOPIC_BLACKLIST_DOC = "List of topics to exclude from read";
     private static final String TOPIC_BLACKLIST_DEFAULT = null;
+
+    public static final String TOPIC_PATTERN_CONFIG = "topic.pattern";
+    private static final String TOPIC_PATTERN_DOC = "Topic pattern when subscribing to multiple topics";
+    private static final String TOPIC_PATTERN_DEFAULT = null;
 
     public static final String SUBSCRIPTION_NAME_CONFIG = "subscription.name";
     private static final String SUBSCRIPTION_NAME_DOC = "The name of the consumer subscription";
@@ -176,6 +182,14 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final String SUBSCRIPTION_INITIAL_POSITION_DOC = "Initial position at which to set cursor when subscribing to a topic at first time";
     private static final String SUBSCRIPTION_INITIAL_POSITION_DEFAULT = SubscriptionInitialPosition.Latest.name();
 
+    public static final String PATTERN_AUTO_DISCOVERY_PERIOD_CONFIG = "pattern.auto.discovery.period";
+    private static final String PATTERN_AUTO_DISCOVERY_PERIOD_DOC = "Topic auto discovery period when using a pattern for topic's consumer";
+    private static final int PATTERN_AUTO_DISCOVERY_PERIOD_DEFAULT = 1;
+
+    public static final String REGEX_SUBSCRIPTION_MODE_CONFIG = "regex.subscription.mode";
+    private static final String REGEX_SUBSCRIPTION_MODE_DOC = "When subscribing to a topic using a regular expression, you can pick a certain type of topics";
+    private static final String REGEX_SUBSCRIPTION_MODE_DEFAULT = RegexSubscriptionMode.PersistentOnly.name();
+
     public static final String AUTO_UPDATE_PARTITIONS_CONFIG = "auto.update.partitions";
     private static final String AUTO_UPDATE_PARTITIONS_DOC = "If enabled, a consumer subscribes to partition increasement automatically";
     private static final boolean AUTO_UPDATE_PARTITIONS_DEFAULT = true;
@@ -185,7 +199,8 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final boolean REPLICATE_SUBSCRIPTION_STATE_DEFAULT = false;
 
     // Non-Options
-    public static final String TOPIC_NAMES_CONFIG = "topic.names";
+    public static final String TOPIC_NAMES = "topic.names";
+    public static final String TOPIC_PATTERN = "topic.pattern";
     public static final ConfigDef CONFIG_DEF = createConfigDef();
 
     private static ConfigDef createConfigDef() {
@@ -205,6 +220,7 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
         .define(
             TOPIC_WHITELIST_CONFIG,
             Type.LIST,
+            TOPIC_WHITELIST_DEFAULT,
             Importance.HIGH,
             TOPIC_WHITELIST_DOC)
         .define(
@@ -213,6 +229,12 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
             TOPIC_BLACKLIST_DEFAULT,
             Importance.HIGH,
             TOPIC_BLACKLIST_DOC)
+        .define(
+            TOPIC_PATTERN_CONFIG,
+            Type.STRING,
+            TOPIC_PATTERN_DEFAULT,
+            Importance.HIGH,
+            TOPIC_PATTERN_DOC)
         .define(
             SUBSCRIPTION_NAME_CONFIG,
             Type.STRING,
@@ -437,6 +459,18 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
             SUBSCRIPTION_INITIAL_POSITION_DEFAULT,
             Importance.LOW,
             SUBSCRIPTION_INITIAL_POSITION_DOC)
+        .define(
+            PATTERN_AUTO_DISCOVERY_PERIOD_CONFIG,
+            Type.INT,
+            PATTERN_AUTO_DISCOVERY_PERIOD_DEFAULT,
+            Importance.LOW,
+            PATTERN_AUTO_DISCOVERY_PERIOD_DOC)
+        .define(
+            REGEX_SUBSCRIPTION_MODE_CONFIG,
+            Type.STRING,
+            REGEX_SUBSCRIPTION_MODE_DEFAULT,
+            Importance.LOW,
+            REGEX_SUBSCRIPTION_MODE_DOC)
         .define(
             AUTO_UPDATE_PARTITIONS_CONFIG,
             Type.BOOLEAN,

@@ -79,8 +79,9 @@ This connector is highly customizable, and the table below explains the differen
 | Configuration | Description | Mandatory? | Default | Possible Values
 | ----------- | ----------- | ------------- | ------------- | ------------- |
 | service.url | Service URL for the Pulsar service | Yes | N/A | N/A |
-| topic.whitelist | List of allowed topics to read from | Yes | N/A | N/A |
+| topic.whitelist | List of allowed topics to read from | No | N/A | N/A |
 | topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
+| topic.pattern | Topic pattern when subscribing to multiple topics | No | N/A | N/A |
 | subscription.name | The name of the consumer subscription | No | A random UUID if not specified | N/A |
 | batch.max.num.messages | Maximum number of messages per batch | No | 10 | N/A |
 | batch.max.num.bytes | Maximum number of bytes per batch | No | 1024 | N/A |
@@ -117,6 +118,8 @@ This connector is highly customizable, and the table below explains the differen
 | crypto.failure.action | Consumer should take action when it receives a message that can not be decrypted | No | FAIL | [FAIL, DISCARD, CONSUME] |
 | read.compacted | If enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic | No | false | N/A |
 | subscription.initial.position | Initial position at which to set cursor when subscribing to a topic at first time | No | Latest | [Latest, Earliest] |
+| pattern.auto.discovery.period | Topic auto discovery period when using a pattern for topic's consumer | No | 1 | N/A |
+| regex.subscription.mode | When subscribing to a topic using a regular expression, you can pick a certain type of topics | No | PersistentOnly | [PersistentOnly, NonPersistentOnly, AllTopics] |
 | auto.update.partitions | If enabled, a consumer subscribes to partition increasement automatically | No | true | N/A |
 | replicate.subscription.state | If enabled, a subscription state is replicated to geo-replicated clusters | No | false | N/A |
 

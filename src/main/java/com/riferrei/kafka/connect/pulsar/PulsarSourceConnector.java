@@ -5,8 +5,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigValue;
 import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.util.ConnectorUtils;
 import com.riferrei.kafka.connect.pulsar.util.Version;
@@ -44,19 +47,60 @@ public class PulsarSourceConnector extends SourceConnector {
     }
 
     @Override
-    public List<Map<String, String>> taskConfigs(int maxTasks) {
-        List<String> whiteList = config.getList(TOPIC_WHITELIST_CONFIG);
-        List<String> blackList = config.getList(TOPIC_BLACKLIST_CONFIG);
-        if (blackList != null && !blackList.isEmpty()) {
-            whiteList.removeAll(blackList);
+    public Config validate(Map<String, String> connectorConfigs) {
+        Config config = super.validate(connectorConfigs);
+        List<ConfigValue> configValues = config.configValues();
+        boolean missingTopicDefinition = true;
+        for (ConfigValue configValue : configValues) {
+            if (configValue.name().equals(TOPIC_WHITELIST_CONFIG) ||
+                configValue.name().equals(TOPIC_PATTERN)) {
+                if (configValue.value() != null) {
+                    missingTopicDefinition = false;
+                    break;
+                }
+            }
         }
-        int numGroups = Math.min(whiteList.size(), maxTasks);
-        List<List<String>> topicSources = ConnectorUtils.groupPartitions(whiteList, numGroups);
-        List<Map<String, String>> taskConfigs = new ArrayList<>(topicSources.size());
-        for (List<String> topicNames : topicSources) {
+        if (missingTopicDefinition) {
+            throw new ConnectException(
+                String.format("There is no topic definition " +
+                "in the configuration. Either the property " +
+                "'%s' or '%s' must be set in the configuration.",
+                TOPIC_WHITELIST_CONFIG, TOPIC_PATTERN_CONFIG));
+        }
+        return config;
+    }
+
+    @Override
+    public List<Map<String, String>> taskConfigs(int maxTasks) {
+        final List<Map<String, String>> taskConfigs = new ArrayList<>();
+        String topicPattern = config.getString(TOPIC_PATTERN_CONFIG);
+        // If the 'topic.pattern' configuration has been set, then
+        // there will be only one task to handle the subscription.
+        // Since there is no way to figure out how many topics the
+        // consumer will subscribe to; we can't infer the number of
+        // tasks to be created.
+        if (topicPattern != null && topicPattern.length() > 0) {
             Map<String, String> taskConfig = new HashMap<>(originalProps);
-            taskConfig.put(TOPIC_NAMES_CONFIG, String.join(",", topicNames));
+            taskConfig.put(TOPIC_PATTERN, topicPattern);
             taskConfigs.add(taskConfig);
+            return taskConfigs;
+        } else {
+            // Otherwise, just read the configuration set for topics to be
+            // consumed to figure out how many tasks should be created. For
+            // maximum parallelism, the value of 'tasks.max' should be set
+            // to the same number of topics.
+            List<String> whiteList = config.getList(TOPIC_WHITELIST_CONFIG);
+            List<String> blackList = config.getList(TOPIC_BLACKLIST_CONFIG);
+            if (blackList != null && !blackList.isEmpty()) {
+                whiteList.removeAll(blackList);
+            }
+            int numGroups = Math.min(whiteList.size(), maxTasks);
+            List<List<String>> topicSources = ConnectorUtils.groupPartitions(whiteList, numGroups);
+            for (List<String> topicSource : topicSources) {
+                Map<String, String> taskConfig = new HashMap<>(originalProps);
+                taskConfig.put(TOPIC_NAMES, String.join(",", topicSource));
+                taskConfigs.add(taskConfig);
+            }
         }
         return taskConfigs;
     }

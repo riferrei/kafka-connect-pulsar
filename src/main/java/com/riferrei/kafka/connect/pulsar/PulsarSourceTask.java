@@ -40,7 +40,6 @@ public class PulsarSourceTask extends SourceTask {
     public void start(Map<String, String> properties) {
         config = new PulsarSourceConnectorConfig(properties);
         String serviceUrl = config.getString(PulsarSourceConnectorConfig.SERVICE_URL_CONFIG);
-        List<String> topicNames = getTopicNames(properties.get(PulsarSourceConnectorConfig.TOPIC_NAMES_CONFIG));
         String subscriptionName = config.getString(PulsarSourceConnectorConfig.SUBSCRIPTION_NAME_CONFIG);
         int batchMaxNumMessages = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_MESSAGES_CONFIG);
         int batchMaxNumBytes = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_BYTES_CONFIG);
@@ -50,8 +49,9 @@ public class PulsarSourceTask extends SourceTask {
                 .serviceUrl(serviceUrl)
                 .loadConf(clientConfig())
                 .build();
-            consumer = client.newConsumer()
-                .topics(topicNames)
+            if (properties.containsKey(TOPIC_PATTERN)) {
+                consumer = client.newConsumer()
+                .topicsPattern(properties.get(TOPIC_PATTERN))
                 .subscriptionName(subscriptionName)
                 .loadConf(consumerConfig())
                 .batchReceivePolicy(BatchReceivePolicy.builder()
@@ -60,6 +60,18 @@ public class PulsarSourceTask extends SourceTask {
                     .maxNumBytes(batchMaxNumBytes)
                     .build())
                 .subscribe();
+            } else {
+                consumer = client.newConsumer()
+                .topics(getTopicNames(properties))
+                .subscriptionName(subscriptionName)
+                .loadConf(consumerConfig())
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                    .timeout(batchTimeout, TimeUnit.MILLISECONDS)
+                    .maxNumMessages(batchMaxNumMessages)
+                    .maxNumBytes(batchMaxNumBytes)
+                    .build())
+                .subscribe();
+            }
         } catch (PulsarClientException pce) {
             if (log.isErrorEnabled()) {
                 log.error("Exception thrown while creating consumer: ", pce);
@@ -67,7 +79,8 @@ public class PulsarSourceTask extends SourceTask {
         }
     }
 
-    private List<String> getTopicNames(String topicNames) {
+    private List<String> getTopicNames(Map<String, String> properties) {
+        String topicNames = properties.get(PulsarSourceConnectorConfig.TOPIC_NAMES);
         log.debug("getTopicNames(): %s", topicNames);
         String[] topicList = topicNames.split(",");
         List<String> topics = new ArrayList<>(topicList.length);
@@ -115,6 +128,8 @@ public class PulsarSourceTask extends SourceTask {
         consumerConfig.put("cryptoFailureAction", config.getString(CRYPTO_FAILURE_ACTION_CONFIG));
         consumerConfig.put("readCompacted", config.getBoolean(READ_COMPACTED_CONFIG));
         consumerConfig.put("subscriptionInitialPosition", config.getString(SUBSCRIPTION_INITIAL_POSITION_CONFIG));
+        consumerConfig.put("patternAutoDiscoveryPeriod", config.getInt(PATTERN_AUTO_DISCOVERY_PERIOD_CONFIG));
+        consumerConfig.put("regexSubscriptionMode", config.getString(REGEX_SUBSCRIPTION_MODE_CONFIG));
         consumerConfig.put("autoUpdatePartitions", config.getBoolean(AUTO_UPDATE_PARTITIONS_CONFIG));
         consumerConfig.put("replicateSubscriptionState", config.getBoolean(REPLICATE_SUBSCRIPTION_STATE_CONFIG));
         return consumerConfig;
