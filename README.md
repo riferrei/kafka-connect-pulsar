@@ -1,7 +1,7 @@
 # Kafka Connect Pulsar Connector
 
 This repository contains an implementation of a source connector for [Apache Pulsar](https://pulsar.apache.org).
-This connector allows data from Pulsar topics to be automatically copied to Kafka topics using Kafka Connect.
+This connector allows data from Pulsar topics to be automatically copied to Kafka topics using [Kafka Connect](https://kafka.apache.org/documentation/#connect).
 By using Kafka Connect to transfer data between these two tecnologies, you can ensure a higher degree of fault-tolerance, scalability, and security that would be hard to achieve with ad-hoc implementations.
 
 ## Getting started
