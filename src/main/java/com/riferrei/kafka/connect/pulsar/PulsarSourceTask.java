@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.connect.source.SourceRecord;
@@ -46,6 +47,7 @@ public class PulsarSourceTask extends SourceTask {
         config = new PulsarSourceConnectorConfig(properties);
         String serviceUrl = config.getString(PulsarSourceConnectorConfig.SERVICE_URL_CONFIG);
         String subscriptionName = config.getString(PulsarSourceConnectorConfig.SUBSCRIPTION_NAME_CONFIG);
+        subscriptionName = subscriptionName == null ? UUID.randomUUID().toString() : subscriptionName;
         int batchMaxNumMessages = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_MESSAGES_CONFIG);
         int batchMaxNumBytes = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_BYTES_CONFIG);
         int batchTimeout = config.getInt(PulsarSourceConnectorConfig.BATCH_TIMEOUT_CONFIG);

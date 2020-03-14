@@ -1,7 +1,6 @@
 package com.riferrei.kafka.connect.pulsar;
 
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.config.AbstractConfig;
@@ -40,7 +39,7 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     public static final String SUBSCRIPTION_NAME_CONFIG = "subscription.name";
     private static final String SUBSCRIPTION_NAME_DOC = "The name of the consumer subscription";
-    private static final String SUBSCRIPTION_NAME_DEFAULT = UUID.randomUUID().toString();
+    private static final String SUBSCRIPTION_NAME_DEFAULT = null;
 
     public static final String BATCH_MAX_NUM_MESSAGES_CONFIG = "batch.max.num.messages";
     private static final String BATCH_MAX_NUM_MESSAGES_DOC = "Maximum number of messages per batch";
