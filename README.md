@@ -11,7 +11,17 @@ The very first thing you need to do to start using this connector is build it. I
 - [Java 1.8+](https://openjdk.java.net/)
 - [Apache Maven](https://maven.apache.org/)
 
-After installing these dependencies, execute the folllowing command:
+After installing these dependencies, you can start testing the connector by following the instructions below.
+
+[![asciicast](https://asciinema.org/a/310191.svg)](https://asciinema.org/a/310191)
+
+### 1 - Cloning the repository
+
+```bash
+git clone https://github.com/riferrei/kafka-connect-pulsar.git
+```
+
+### 2 - Building the connector
 
 ```bash
 mvn clean install
@@ -19,12 +29,13 @@ mvn clean install
 
 Once the build finishes, a new directory called `connector` will be created with the connector JAR file inside it.
 
-## Testing the connector
+### 3 - Starting the environment
 
 In order to validate if the connector is working as expected, as well as to validate the behavior of possible configurations, [examples](/examples) of the connector have been created for testing purposes.
 The fastest way to test the connector without having to worry in installing Pulsar and Kafka is using Docker.
 This repository contains a [docker-compose.yml](docker-compose.yml) file that can be used to quickly spin up Pulsar, Zookeeper, Kafka, and Kafka Connect with a single-command.
-Go ahead and execute the following command:
+
+Start the environment with the following command:
 
 ```bash
 docker-compose up
@@ -32,7 +43,7 @@ docker-compose up
 
 Wait until all containers are up so you can start the testing.
 
-### 1 - Sending messages to Pulsar
+### 4 - Sending data to Pulsar
 
 Open a terminal to execute the following command:
 
@@ -42,7 +53,7 @@ docker exec pulsar bin/pulsar-client produce msgs --messages "first five message
 
 This will produce five messages to a topic named `msgs`.
 
-### 2 - Install the connector
+### 5 - Install the connector
 
 Open a terminal to execute the following command:
 
@@ -53,7 +64,7 @@ curl -X POST -H "Content-Type:application/json" -d @examples/basic-example.json 
 This will request the deployment of a new connector named `basic-example` that aims to read all messages stored in the topic `msgs`.
 The connector will purposely read all messages from that Pulsar topic from the beginning, so any messages produced so far will be copied to Kafka.
 
-### 3 - Check the messages in Kafka
+### 6 - Check the data in Kafka
 
 Open a terminal to execute the following command:
 
@@ -63,14 +74,18 @@ docker exec kafka kafka-console-consumer --bootstrap-server kafka:9092 --topic m
 
 After executing this command you should see five records containing 'first five messages' as payload.
 This command doesn't halt automatically and it will keep waiting for new records to arrive until you stop it manually.
-For now just leave it running.
-Then, using another terminal send another five new messages using the following command:
+For now just leave it running so we can verify the streaming behavior.
+
+### 7 - Verifying data streaming
+
+Now that the connector has been deployed and it is working as expected, you should be able to see instant streaming of data from Pulsar to Kafka.
+In order to verify this behavior, send another set of messages to the `msgs` topic in Pulsar:
 
 ```bash
 docker exec pulsar bin/pulsar-client produce msgs --messages "next five messages" --num-produce 5
 ```
 
-At this point you should have ten records being displayed, which means that the connector is working as expected.
+At this point you should have ten records stored in Kafka, which means that the connector is working as expected.
 
 ## Configuration reference
 
