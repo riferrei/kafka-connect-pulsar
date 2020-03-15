@@ -33,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -66,34 +67,26 @@ public class PulsarSourceTask extends SourceTask {
         int batchMaxNumMessages = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_MESSAGES_CONFIG);
         int batchMaxNumBytes = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_BYTES_CONFIG);
         int batchTimeout = config.getInt(PulsarSourceConnectorConfig.BATCH_TIMEOUT_CONFIG);
+        ConsumerBuilder<byte[]> builder = null;
         try {
             client = PulsarClient.builder()
                 .serviceUrl(serviceUrl)
                 .loadConf(clientConfig())
                 .build();
+            builder = client.newConsumer()
+                .subscriptionName(subscriptionName)
+                .loadConf(consumerConfig())
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                    .timeout(batchTimeout, TimeUnit.MILLISECONDS)
+                    .maxNumMessages(batchMaxNumMessages)
+                    .maxNumBytes(batchMaxNumBytes)
+                    .build());
             if (properties.containsKey(TOPIC_PATTERN)) {
-                consumer = client.newConsumer()
-                .topicsPattern(properties.get(TOPIC_PATTERN))
-                .subscriptionName(subscriptionName)
-                .loadConf(consumerConfig())
-                .batchReceivePolicy(BatchReceivePolicy.builder()
-                    .timeout(batchTimeout, TimeUnit.MILLISECONDS)
-                    .maxNumMessages(batchMaxNumMessages)
-                    .maxNumBytes(batchMaxNumBytes)
-                    .build())
-                .subscribe();
-            } else {
-                consumer = client.newConsumer()
-                .topics(getTopicNames(properties))
-                .subscriptionName(subscriptionName)
-                .loadConf(consumerConfig())
-                .batchReceivePolicy(BatchReceivePolicy.builder()
-                    .timeout(batchTimeout, TimeUnit.MILLISECONDS)
-                    .maxNumMessages(batchMaxNumMessages)
-                    .maxNumBytes(batchMaxNumBytes)
-                    .build())
-                .subscribe();
+                builder.topicsPattern(properties.get(TOPIC_PATTERN));
+            } else if (properties.containsKey(TOPIC_NAMES)) {
+                builder.topics(getTopicNames(properties));
             }
+            consumer = builder.subscribe();
         } catch (PulsarClientException pce) {
             if (log.isErrorEnabled()) {
                 log.error("Exception thrown while creating consumer: ", pce);
