@@ -13,7 +13,7 @@ The very first thing you need to do to start using this connector is build it. I
 
 After installing these dependencies, you can start testing the connector by following the instructions below.
 
-[![asciicast](https://asciinema.org/a/310191.svg)](https://asciinema.org/a/310191)
+[![asciicast](https://asciinema.org/a/310427.svg)](https://asciinema.org/a/310427)
 
 ### 1 - Cloning the repository
 
