@@ -1,3 +1,20 @@
+/**
+
+    Copyright © 2020 Ricardo Ferreira (riferrei@riferrei.com)
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+*/
+
 package com.riferrei.kafka.connect.pulsar;
 
 import java.util.Map;
@@ -14,7 +31,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 
 public class PulsarSourceConnectorConfig extends AbstractConfig {
 
-    public PulsarSourceConnectorConfig(Map<?, ?> originalProps) {
+    public PulsarSourceConnectorConfig(final Map<?, ?> originalProps) {
         super(CONFIG_DEF, originalProps);
     }
 
@@ -53,8 +70,10 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final String BATCH_TIMEOUT_DOC = "Timeout criteria per batch";
     private static final int BATCH_TIMEOUT_DEFAULT = 1000;
 
+    public enum TopicNamingStrategyOptions {
+        NameOnly, FullyQualified
+    };
     public static final String TOPIC_NAMING_STRATEGY_CONFIG = "topic.naming.strategy";
-    public static enum TopicNamingStrategyOptions {NameOnly, FullyQualified};
     private static final String TOPIC_NAMING_STRATEGY_DOC = "Topic naming strategy for the Kafka topic";
     private static final String TOPIC_NAMING_STRATEGY_DEFAULT = TopicNamingStrategyOptions.NameOnly.name();
 
@@ -202,7 +221,7 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     // Non-Options
     public static final String TOPIC_NAMES = "topic.names";
-    public static final String TOPIC_PATTERN = "topic.pattern";
+    public static final String TOPIC_PATTERN = TOPIC_PATTERN_CONFIG;
     public static final ConfigDef CONFIG_DEF = createConfigDef();
 
     private static ConfigDef createConfigDef() {
@@ -213,7 +232,7 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
         return configDef;
     }
 
-    private static void addBasicOptions(ConfigDef configDef) {
+    private static void addBasicOptions(final ConfigDef configDef) {
         configDef.define(
             SERVICE_URL_CONFIG,
             Type.STRING,
@@ -275,7 +294,7 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
         );
     }
 
-    private static void addClientOptions(ConfigDef configDef) {
+    private static void addClientOptions(final ConfigDef configDef) {
         configDef.define(
             AUTH_PLUGIN_CLASS_NAME_CONFIG,
             Type.STRING,
@@ -393,7 +412,7 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
         );
     }
 
-    private static void addConsumerOptions(ConfigDef configDef) {
+    private static void addConsumerOptions(final ConfigDef configDef) {
         configDef.define(
             SUBSCRIPTION_TYPE_CONFIG,
             Type.STRING,

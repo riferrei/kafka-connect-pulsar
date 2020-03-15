@@ -1,3 +1,20 @@
+/**
+
+    Copyright © 2020 Ricardo Ferreira (riferrei@riferrei.com)
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+*/
+
 package com.riferrei.kafka.connect.pulsar;
 
 import java.net.URI;
@@ -23,13 +40,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.riferrei.kafka.connect.pulsar.util.Version;
-
 import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
 
 public class PulsarSourceTask extends SourceTask {
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarSourceTask.class);
+    private static Logger log = LoggerFactory.getLogger(PulsarSourceTask.class);
 
     private List<String> partitionedTopics;
     private PulsarSourceConnectorConfig config;
@@ -38,7 +53,7 @@ public class PulsarSourceTask extends SourceTask {
 
     @Override
     public String version() {
-        return Version.getVersion();
+        return VersionUtil.getVersion();
     }
 
     @Override
@@ -208,8 +223,8 @@ public class PulsarSourceTask extends SourceTask {
         // ending up with multiple topics in the Kafka
         // side that ultimately represent only 1 topic.
         for (String partitionedTopic : partitionedTopics) {
-            if (topicName.contains(partitionedTopic) &&
-                topicName.contains("-partition-")) {
+            if (topicName.contains(partitionedTopic)
+                && topicName.contains("-partition-")) {
                 topicName = topicName.replaceAll("-partition-\\d+", "");
                 break;
             }
@@ -230,7 +245,7 @@ public class PulsarSourceTask extends SourceTask {
             topicName = topicNameParts[topicNameParts.length - 1];
         } else if (tns.equals(TopicNamingStrategyOptions.FullyQualified)) {
             StringBuilder fullyQualifiedTopic = new StringBuilder();
-            if (topic.getHost() != null && topic.getHost().length() > 0) { 
+            if (topic.getHost() != null && topic.getHost().length() > 0) {
                 fullyQualifiedTopic.append(topic.getHost());
             }
             fullyQualifiedTopic.append(topic.getPath().replaceAll("/", "-"));

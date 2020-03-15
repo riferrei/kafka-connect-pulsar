@@ -1,19 +1,36 @@
 <?xml version="1.0" ?>
+
+<!--
+
+    Copyright © 2020 Ricardo Ferreira (riferrei@riferrei.com)
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-    http://maven.apache.org/xsd/maven-4.0.0.xsd"
-    xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.riferrei.kafka.connect</groupId>
     <artifactId>kafka-connect-pulsar</artifactId>
-    <version>0.1</version>
+    <description>Kafka Connect Source Connector for Apache Pulsar</description>
+    <version>0.2</version>
 
     <licenses>
         <license>
-            <name>GNU General Public License 3.0</name>
-            <url>https://github.com/riferrei/kafka-connect-pulsar/blob/master/LICENSE</url>
+            <name>The Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -28,6 +45,17 @@
             </roles>
         </developer>
     </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/riferrei/kafka-connect-pulsar.git</connection>
+        <developerConnection>scm:git:git@github.com:riferrei/kafka-connect-pulsar.git</developerConnection>
+        <url>https://github.com/riferrei/kafka-connect-pulsar</url>
+    </scm>
+
+    <issueManagement>
+        <system>github</system>
+        <url>https://github.com/riferrei/kafka-connect-pulsar/issues</url>
+    </issueManagement>
 
     <dependencies>
         <dependency>
@@ -67,41 +95,45 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.2</version>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.1.1</version>
                 <configuration>
-                    <outputFile>connector/${project.artifactId}-${project.version}.jar</outputFile>
-                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                    <suppressionsLocation>checkstyle/suppressions.xml</suppressionsLocation>
                 </configuration>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <id>validate</id>
+                        <phase>validate</phase>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>check</goal>
                         </goals>
-                        <configuration>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.2.0</version>
-                <configuration>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-maven-plugin</artifactId>
+                <version>0.11.2</version>
+                <executions>
+                    <execution>
+                        <id>hub</id>
+                        <goals>
+                            <goal>kafka-connect</goal>
+                        </goals>
+                        <configuration>
+                            <ownerUsername>riferrei</ownerUsername>
+                            <componentTypes>
+                                <componentType>source</componentType>
+                            </componentTypes>
+                            <tags>
+                                <tag>apache</tag>
+                                <tag>pulsar</tag>
+                            </tags>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
-    
+
 </project>

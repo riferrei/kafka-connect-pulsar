@@ -27,8 +27,6 @@ git clone https://github.com/riferrei/kafka-connect-pulsar.git
 mvn clean install
 ```
 
-Once the build finishes, a new directory called `connector` will be created with the connector JAR file inside it.
-
 ### 3 - Starting the environment
 
 In order to validate if the connector is working as expected, as well as to validate the behavior of possible configurations, [examples](/examples) of the connector have been created for testing purposes.
@@ -142,4 +140,4 @@ Keep in mind that though the table says that the properties `topic.whitelist` an
 
 # License
 
-This project is licensed under the [GNU General Public License](LICENSE).
+This project is licensed under the [Apache 2.0 License](./LICENSE).

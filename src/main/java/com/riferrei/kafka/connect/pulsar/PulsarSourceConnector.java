@@ -1,3 +1,20 @@
+/**
+
+    Copyright © 2020 Ricardo Ferreira (riferrei@riferrei.com)
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+*/
+
 package com.riferrei.kafka.connect.pulsar;
 
 import java.util.ArrayList;
@@ -12,7 +29,6 @@ import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.util.ConnectorUtils;
-import com.riferrei.kafka.connect.pulsar.util.Version;
 
 import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
 
@@ -23,7 +39,7 @@ public class PulsarSourceConnector extends SourceConnector {
 
     @Override
     public String version() {
-        return Version.getVersion();
+        return VersionUtil.getVersion();
     }
 
     @Override
@@ -52,8 +68,8 @@ public class PulsarSourceConnector extends SourceConnector {
         List<ConfigValue> configValues = config.configValues();
         boolean missingTopicDefinition = true;
         for (ConfigValue configValue : configValues) {
-            if (configValue.name().equals(TOPIC_WHITELIST_CONFIG) ||
-                configValue.name().equals(TOPIC_PATTERN)) {
+            if (configValue.name().equals(TOPIC_WHITELIST_CONFIG)
+                || configValue.name().equals(TOPIC_PATTERN_CONFIG)) {
                 if (configValue.value() != null) {
                     missingTopicDefinition = false;
                     break;
@@ -61,10 +77,10 @@ public class PulsarSourceConnector extends SourceConnector {
             }
         }
         if (missingTopicDefinition) {
-            throw new ConnectException(
-                String.format("There is no topic definition " +
-                "in the configuration. Either the property " +
-                "'%s' or '%s' must be set in the configuration.",
+            throw new ConnectException(String.format(
+                "There is no topic definition in the "
+                + "configuration. Either the property "
+                + "'%s' or '%s' must be set in the configuration.",
                 TOPIC_WHITELIST_CONFIG, TOPIC_PATTERN_CONFIG));
         }
         return config;
