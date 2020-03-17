@@ -108,6 +108,7 @@ public class PulsarSourceConnector extends SourceConnector {
             List<String> whiteList = config.getList(TOPIC_WHITELIST_CONFIG);
             List<String> blackList = config.getList(TOPIC_BLACKLIST_CONFIG);
             if (blackList != null && !blackList.isEmpty()) {
+                whiteList = new ArrayList<>(whiteList);
                 whiteList.removeAll(blackList);
             }
             int numGroups = Math.min(whiteList.size(), maxTasks);
