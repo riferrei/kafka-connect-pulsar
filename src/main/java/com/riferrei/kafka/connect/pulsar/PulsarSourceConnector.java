@@ -89,23 +89,8 @@ public class PulsarSourceConnector extends SourceConnector {
     @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
         final List<Map<String, String>> taskConfigs = new ArrayList<>();
-        String topicPattern = config.getString(TOPIC_PATTERN_CONFIG);
-        // If the 'topic.pattern' configuration has been set, then
-        // there will be only one task to handle the subscription.
-        // Since there is no way to figure out how many topics the
-        // consumer will subscribe to; we can't infer the number of
-        // tasks to be created.
-        if (topicPattern != null && topicPattern.length() > 0) {
-            Map<String, String> taskConfig = new HashMap<>(originalProps);
-            taskConfig.put(TOPIC_PATTERN, topicPattern);
-            taskConfigs.add(taskConfig);
-            return taskConfigs;
-        } else {
-            // Otherwise, just read the configuration set for topics to be
-            // consumed to figure out how many tasks should be created. For
-            // maximum parallelism, the value of 'tasks.max' should be set
-            // to the same number of topics.
-            List<String> whiteList = config.getList(TOPIC_WHITELIST_CONFIG);
+        List<String> whiteList = config.getList(TOPIC_WHITELIST_CONFIG);
+        if (whiteList != null && !whiteList.isEmpty()) {
             List<String> blackList = config.getList(TOPIC_BLACKLIST_CONFIG);
             if (blackList != null && !blackList.isEmpty()) {
                 whiteList = new ArrayList<>(whiteList);
@@ -115,9 +100,19 @@ public class PulsarSourceConnector extends SourceConnector {
             List<List<String>> topicSources = ConnectorUtils.groupPartitions(whiteList, numGroups);
             for (List<String> topicSource : topicSources) {
                 Map<String, String> taskConfig = new HashMap<>(originalProps);
-                taskConfig.put(TOPIC_NAMES, String.join(",", topicSource));
+                taskConfig.put(TOPIC_NAMES, String.join(", ", topicSource));
                 taskConfigs.add(taskConfig);
             }
+        } else {
+            // If the 'topic.pattern' configuration has been set, then
+            // there will be only one task to handle the subscription.
+            // Since there is no way to figure out how many topics the
+            // consumer will subscribe to; we can't infer the number of
+            // tasks to be created.
+            String topicPattern = config.getString(TOPIC_PATTERN_CONFIG);
+            Map<String, String> taskConfig = new HashMap<>(originalProps);
+            taskConfig.put(TOPIC_PATTERN, topicPattern);
+            taskConfigs.add(taskConfig);
         }
         return taskConfigs;
     }
