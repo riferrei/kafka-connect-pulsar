@@ -28,9 +28,9 @@ public class PulsarSourceConnectorConfigTest {
         props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
         props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
         PulsarSourceConnectorConfig config = new PulsarSourceConnectorConfig(props);
-        assertEquals(10, config.getInt(BATCH_MAX_NUM_MESSAGES_CONFIG));
-        assertEquals(1024, config.getInt(BATCH_MAX_NUM_BYTES_CONFIG));
-        assertEquals(1000, config.getInt(BATCH_TIMEOUT_CONFIG));
+        assertEquals(-1, config.getInt(BATCH_MAX_NUM_MESSAGES_CONFIG));
+        assertEquals(20480, config.getInt(BATCH_MAX_NUM_BYTES_CONFIG));
+        assertEquals(100, config.getInt(BATCH_TIMEOUT_CONFIG));
     }
 
 }

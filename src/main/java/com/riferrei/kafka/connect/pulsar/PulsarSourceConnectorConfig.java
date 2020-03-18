@@ -60,15 +60,15 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     public static final String BATCH_MAX_NUM_MESSAGES_CONFIG = "batch.max.num.messages";
     private static final String BATCH_MAX_NUM_MESSAGES_DOC = "Maximum number of messages per batch";
-    private static final int BATCH_MAX_NUM_MESSAGES_DEFAULT = 10;
+    private static final int BATCH_MAX_NUM_MESSAGES_DEFAULT = -1;
 
     public static final String BATCH_MAX_NUM_BYTES_CONFIG = "batch.max.num.bytes";
     private static final String BATCH_MAX_NUM_BYTES_DOC = "Maximum number of bytes per batch";
-    private static final int BATCH_MAX_NUM_BYTES_DEFAULT = 1024;
+    private static final int BATCH_MAX_NUM_BYTES_DEFAULT = 20480;
 
     public static final String BATCH_TIMEOUT_CONFIG = "batch.timeout";
     private static final String BATCH_TIMEOUT_DOC = "Timeout criteria per batch";
-    private static final int BATCH_TIMEOUT_DEFAULT = 1000;
+    private static final int BATCH_TIMEOUT_DEFAULT = 100;
 
     public enum TopicNamingStrategyOptions {
         NameOnly, FullyQualified

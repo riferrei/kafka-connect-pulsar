@@ -12,6 +12,10 @@ public abstract class AbstractBasicTest {
         "topic-4", "topic-5", "topic-6"
     };
 
+    protected String fullyQualifiedTopic(String topic) {
+        return String.format("public-default-%s", topic);
+    }
+
     protected String listToString(String... topics) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < topics.length; i++) {
