@@ -59,7 +59,6 @@ public class PulsarSourceTask extends SourceTask {
 
     @Override
     public void start(Map<String, String> properties) {
-        partitionedTopics = getPartitionedTopics(properties);
         config = new PulsarSourceConnectorConfig(properties);
         String serviceUrl = config.getString(PulsarSourceConnectorConfig.SERVICE_URL_CONFIG);
         String subscriptionName = config.getString(PulsarSourceConnectorConfig.SUBSCRIPTION_NAME_CONFIG);
@@ -84,6 +83,7 @@ public class PulsarSourceTask extends SourceTask {
             if (properties.containsKey(TOPIC_PATTERN)) {
                 builder.topicsPattern(properties.get(TOPIC_PATTERN));
             } else if (properties.containsKey(TOPIC_NAMES)) {
+                partitionedTopics = getPartitionedTopics(properties);
                 builder.topics(getTopicNames(properties));
             }
             consumer = builder.subscribe();
