@@ -27,7 +27,7 @@
     <groupId>com.riferrei.kafka.connect</groupId>
     <artifactId>kafka-connect-pulsar</artifactId>
     <description>Kafka Connect Source Connector for Apache Pulsar</description>
-    <version>0.2</version>
+    <version>0.2.0</version>
 
     <licenses>
         <license>
