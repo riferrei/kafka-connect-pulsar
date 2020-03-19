@@ -23,27 +23,33 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class VersionUtil {
+public final class PropertiesUtil {
 
-    private static Logger log = LoggerFactory.getLogger(VersionUtil.class);
-    private static String versionPropsFile = "/kafka-connect-pulsar.properties";
-    private static String version = "unknown";
+    private static final String CONNECTOR_VERSION = "connector.version";
+    private static final String PULSAR_VERSION = "pulsar.version";
+
+    private static Logger log = LoggerFactory.getLogger(PropertiesUtil.class);
+    private static String propertiesFile = "/kafka-connect-pulsar.properties";
+    private static Properties properties;
 
     static {
-        try (InputStream stream = VersionUtil.class.getResourceAsStream(versionPropsFile)) {
-            Properties props = new Properties();
-            props.load(stream);
-            version = props.getProperty("version", version).trim();
+        try (InputStream stream = PropertiesUtil.class.getResourceAsStream(propertiesFile)) {
+            properties = new Properties();
+            properties.load(stream);
         } catch (Exception ex) {
-            log.warn("Error while loading version: ", ex);
+            log.warn("Error while loading properties: ", ex);
         }
     }
 
-    public static String getVersion() {
-        return version;
+    public static String getConnectorVersion() {
+        return properties.getProperty(CONNECTOR_VERSION);
     }
 
-    private VersionUtil() {
+    public static String getPulsarVersion() {
+        return properties.getProperty(PULSAR_VERSION);
+    }
+
+    private PropertiesUtil() {
     }
 
 }

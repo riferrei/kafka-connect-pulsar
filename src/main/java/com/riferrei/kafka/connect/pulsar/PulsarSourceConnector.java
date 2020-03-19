@@ -39,7 +39,7 @@ public class PulsarSourceConnector extends SourceConnector {
 
     @Override
     public String version() {
-        return VersionUtil.getVersion();
+        return PropertiesUtil.getConnectorVersion();
     }
 
     @Override

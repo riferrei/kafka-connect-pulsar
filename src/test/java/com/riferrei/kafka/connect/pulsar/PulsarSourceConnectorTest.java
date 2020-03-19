@@ -16,7 +16,7 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
 
     @Test
     public void connectorVersionShouldMatch() {
-        String version = VersionUtil.getVersion();
+        String version = PropertiesUtil.getConnectorVersion();
         assertEquals(version, new PulsarSourceConnector().version());
     }
 
@@ -30,8 +30,8 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
     public void checkMissingTopicDefinition() {
         assertThrows(ConnectException.class, () -> {
             Map<String, String> props = new HashMap<>();
-            props.put(SERVICE_URL_CONFIG, serviceUrlValue);
-            props.put(SERVICE_HTTP_URL_CONFIG, serviceHttpUrlValue);
+            props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
+            props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
             new PulsarSourceConnector().validate(props);
         });
     }
@@ -39,9 +39,9 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
     @Test
     public void patternShouldCreateOnlyOneTask() {
         Map<String, String> props = new HashMap<>();
-        props.put(SERVICE_URL_CONFIG, serviceUrlValue);
-        props.put(SERVICE_HTTP_URL_CONFIG, serviceHttpUrlValue);
-        props.put(TOPIC_PATTERN_CONFIG, topicPatternValue);
+        props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
+        props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
+        props.put(TOPIC_PATTERN_CONFIG, TOPIC_PATTERN_VALUE);
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         assertEquals(1, connector.taskConfigs(1).size());
@@ -50,9 +50,9 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
     @Test
     public void whiteListShouldCreateMultipleTasks() {
         Map<String, String> props = new HashMap<>();
-        props.put(SERVICE_URL_CONFIG, serviceUrlValue);
-        props.put(SERVICE_HTTP_URL_CONFIG, serviceHttpUrlValue);
-        props.put(TOPIC_WHITELIST_CONFIG, listToString(topic[0], topic[1], topic[2]));
+        props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
+        props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
+        props.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         assertEquals(3, connector.taskConfigs(3).size());
@@ -61,10 +61,10 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
     @Test
     public void blackListUsageShouldChangeWhiteList() {
         Map<String, String> props = new HashMap<>();
-        props.put(SERVICE_URL_CONFIG, serviceUrlValue);
-        props.put(SERVICE_HTTP_URL_CONFIG, serviceHttpUrlValue);
-        props.put(TOPIC_WHITELIST_CONFIG, listToString(topic[0], topic[1], topic[2]));
-        props.put(TOPIC_BLACKLIST_CONFIG, listToString(topic[2], topic[3], topic[4]));
+        props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
+        props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
+        props.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
+        props.put(TOPIC_BLACKLIST_CONFIG, listToString(TOPIC[2], TOPIC[3], TOPIC[4]));
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         assertEquals(2, connector.taskConfigs(6).size());
@@ -73,10 +73,10 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
     @Test
     public void whiteListShouldTakePrecedenceOverPattern() {
         Map<String, String> props = new HashMap<>();
-        props.put(SERVICE_URL_CONFIG, serviceUrlValue);
-        props.put(SERVICE_HTTP_URL_CONFIG, serviceHttpUrlValue);
-        props.put(TOPIC_PATTERN_CONFIG, topicPatternValue);
-        props.put(TOPIC_WHITELIST_CONFIG, listToString(topic[0], topic[1], topic[2]));
+        props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
+        props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
+        props.put(TOPIC_PATTERN_CONFIG, TOPIC_PATTERN_VALUE);
+        props.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         assertEquals(3, connector.taskConfigs(3).size());
@@ -85,14 +85,14 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
     @Test
     public void checkTaskCreationWithSmallerMaxTasks() {
         Map<String, String> props = new HashMap<>();
-        props.put(SERVICE_URL_CONFIG, serviceUrlValue);
-        props.put(SERVICE_HTTP_URL_CONFIG, serviceHttpUrlValue);
-        props.put(TOPIC_WHITELIST_CONFIG, listToString(topic[0], topic[1], topic[2]));
+        props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
+        props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
+        props.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         List<Map<String, String>> taskConfigs = connector.taskConfigs(2);
-        assertEquals(listToString(topic[0], topic[1]), taskConfigs.get(0).get(TOPIC_NAMES));
-        assertEquals(topic[2], taskConfigs.get(1).get(TOPIC_NAMES));
+        assertEquals(listToString(TOPIC[0], TOPIC[1]), taskConfigs.get(0).get(TOPIC_NAMES));
+        assertEquals(TOPIC[2], taskConfigs.get(1).get(TOPIC_NAMES));
         
     }
     

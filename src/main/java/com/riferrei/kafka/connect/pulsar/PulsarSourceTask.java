@@ -54,7 +54,7 @@ public class PulsarSourceTask extends SourceTask {
 
     @Override
     public String version() {
-        return VersionUtil.getVersion();
+        return PropertiesUtil.getConnectorVersion();
     }
 
     @Override
