@@ -162,6 +162,7 @@
                         </goals>
                         <configuration>
                             <ownerUsername>riferrei</ownerUsername>
+                            <logo>logos/pulsar.png</logo>
                             <componentTypes>
                                 <componentType>source</componentType>
                             </componentTypes>
