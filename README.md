@@ -4,34 +4,30 @@ This repository contains an implementation of a source connector for [Apache Pul
 This connector allows data from Pulsar topics to be automatically copied to Kafka topics using [Kafka Connect](https://kafka.apache.org/documentation/#connect).
 By using Kafka Connect to transfer data between these two tecnologies, you can ensure a higher degree of fault-tolerance, scalability, and security that would be hard to achieve with ad-hoc implementations.
 
-## Getting started
+## Building the connector
 
-The very first thing you need to do to start using this connector is build it. In order to do that, you need to install the following dependencies:
+The first thing you need to do to start using this connector is building it. In order to do that, you need to install the following dependencies:
 
 - [Java 1.8+](https://openjdk.java.net/)
 - [Apache Maven](https://maven.apache.org/)
 
-After installing these dependencies, you can start testing the connector by following the instructions below.
-
-[![asciicast](https://asciinema.org/a/310427.svg)](https://asciinema.org/a/310427)
-
-### 1 - Cloning the repository
-
-```bash
-git clone https://github.com/riferrei/kafka-connect-pulsar.git
-```
-
-### 2 - Building the connector
+After installing these dependencies, execute the following command:
 
 ```bash
 mvn clean install
 ```
 
-### 3 - Starting the environment
+Keep in mind that this command also force the tests to be executed. Some of the tests rely on the [TestContainers](https://www.testcontainers.org/) framework and therefore -- you will need to have a functional Docker installation in your machine.
+If this is not the case or you just want the connector then execute the command with the parameter `-DskipTests`.
 
-In order to validate if the connector is working as expected, as well as to validate the behavior of possible configurations, [examples](/examples) of the connector have been created for testing purposes.
-The fastest way to test the connector without having to worry in installing Pulsar and Kafka is using Docker.
-This repository contains a [docker-compose.yml](docker-compose.yml) file that can be used to quickly spin up Pulsar, Zookeeper, Kafka, and Kafka Connect with a single-command.
+## Trying the connector
+
+After building the connector you can try it by using the Docker-based installation from this repository.
+Follow the instructions below to start an environment with Pulsar, Zookeeper, Kafka, and Connect to quickly experiment with the connector.
+
+[![asciicast](https://asciinema.org/a/311541.svg)](https://asciinema.org/a/311541)
+
+### 1 - Starting the environment
 
 Start the environment with the following command:
 
@@ -41,7 +37,7 @@ docker-compose up
 
 Wait until all containers are up so you can start the testing.
 
-### 4 - Sending data to Pulsar
+### 2 - Sending data to Pulsar
 
 Open a terminal to execute the following command:
 
@@ -51,7 +47,7 @@ docker exec pulsar bin/pulsar-client produce msgs --messages "first five message
 
 This will produce five messages to a topic named `msgs`.
 
-### 5 - Install the connector
+### 3 - Install the connector
 
 Open a terminal to execute the following command:
 
@@ -62,7 +58,7 @@ curl -X POST -H "Content-Type:application/json" -d @examples/basic-example.json 
 This will request the deployment of a new connector named `basic-example` that aims to read all messages stored in the topic `msgs`.
 The connector will purposely read all messages from that Pulsar topic from the beginning, so any messages produced so far will be copied to Kafka.
 
-### 6 - Check the data in Kafka
+### 4 - Check the data in Kafka
 
 Open a terminal to execute the following command:
 
@@ -74,7 +70,7 @@ After executing this command you should see five records containing 'first five 
 This command doesn't halt automatically and it will keep waiting for new records to arrive until you stop it manually.
 For now just leave it running so we can verify the streaming behavior.
 
-### 7 - Verifying data streaming
+### 5 - Verifying data streaming
 
 Now that the connector has been deployed and it is working as expected, you should be able to see instant streaming of data from Pulsar to Kafka.
 In order to verify this behavior, send another set of messages to the `msgs` topic in Pulsar:
