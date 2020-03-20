@@ -46,13 +46,17 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final String TOPIC_WHITELIST_DOC = "List of allowed topics to read from";
     private static final String TOPIC_WHITELIST_DEFAULT = null;
 
+    public static final String TOPIC_REGEX_CONFIG = "topic.regex";
+    private static final String TOPIC_REGEX_DOC = "Regex of allowed topics to read from";
+    private static final String TOPIC_REGEX_DEFAULT = null;
+
+    public static final String TOPIC_POLL_INTERVAL_MS_CONFIG = "topic.poll.interval.ms";
+    private static final String TOPIC_POLL_INTERVAL_MS_DOC = "How often to poll Pulsar for topics matching topic.regex";
+    private static final long TOPIC_POLL_INTERVAL_MS_DEFAULT = 300000;
+
     public static final String TOPIC_BLACKLIST_CONFIG = "topic.blacklist";
     private static final String TOPIC_BLACKLIST_DOC = "List of topics to exclude from read";
     private static final String TOPIC_BLACKLIST_DEFAULT = null;
-
-    public static final String TOPIC_PATTERN_CONFIG = "topic.pattern";
-    private static final String TOPIC_PATTERN_DOC = "Topic pattern when subscribing to multiple topics";
-    private static final String TOPIC_PATTERN_DEFAULT = null;
 
     public static final String SUBSCRIPTION_NAME_CONFIG = "subscription.name";
     private static final String SUBSCRIPTION_NAME_DOC = "The name of the consumer subscription";
@@ -203,10 +207,6 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final String SUBSCRIPTION_INITIAL_POSITION_DOC = "Initial position at which to set cursor when subscribing to a topic at first time";
     private static final String SUBSCRIPTION_INITIAL_POSITION_DEFAULT = SubscriptionInitialPosition.Latest.name();
 
-    public static final String PATTERN_AUTO_DISCOVERY_PERIOD_CONFIG = "pattern.auto.discovery.period";
-    private static final String PATTERN_AUTO_DISCOVERY_PERIOD_DOC = "Topic auto discovery period when using a pattern for topic's consumer";
-    private static final int PATTERN_AUTO_DISCOVERY_PERIOD_DEFAULT = 1;
-
     public static final String REGEX_SUBSCRIPTION_MODE_CONFIG = "regex.subscription.mode";
     private static final String REGEX_SUBSCRIPTION_MODE_DOC = "When subscribing to a topic using a regular expression, you can pick a certain type of topics";
     private static final String REGEX_SUBSCRIPTION_MODE_DEFAULT = RegexSubscriptionMode.PersistentOnly.name();
@@ -221,7 +221,7 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     // Non-Options
     public static final String TOPIC_NAMES = "topic.names";
-    public static final String TOPIC_PATTERN = TOPIC_PATTERN_CONFIG;
+    public static final String TOPIC_REGEX = TOPIC_REGEX_CONFIG;
     public static final ConfigDef CONFIG_DEF = createConfigDef();
 
     private static ConfigDef createConfigDef() {
@@ -250,17 +250,23 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
             Importance.HIGH,
             TOPIC_WHITELIST_DOC)
         .define(
+            TOPIC_REGEX_CONFIG,
+            Type.STRING,
+            TOPIC_REGEX_DEFAULT,
+            Importance.HIGH,
+            TOPIC_REGEX_DOC)
+        .define(
+            TOPIC_POLL_INTERVAL_MS_CONFIG,
+            Type.LONG,
+            TOPIC_POLL_INTERVAL_MS_DEFAULT,
+            Importance.HIGH,
+            TOPIC_POLL_INTERVAL_MS_DOC)
+        .define(
             TOPIC_BLACKLIST_CONFIG,
             Type.LIST,
             TOPIC_BLACKLIST_DEFAULT,
             Importance.HIGH,
             TOPIC_BLACKLIST_DOC)
-        .define(
-            TOPIC_PATTERN_CONFIG,
-            Type.STRING,
-            TOPIC_PATTERN_DEFAULT,
-            Importance.HIGH,
-            TOPIC_PATTERN_DOC)
         .define(
             SUBSCRIPTION_NAME_CONFIG,
             Type.STRING,
@@ -485,12 +491,6 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
             SUBSCRIPTION_INITIAL_POSITION_DEFAULT,
             Importance.LOW,
             SUBSCRIPTION_INITIAL_POSITION_DOC)
-        .define(
-            PATTERN_AUTO_DISCOVERY_PERIOD_CONFIG,
-            Type.INT,
-            PATTERN_AUTO_DISCOVERY_PERIOD_DEFAULT,
-            Importance.LOW,
-            PATTERN_AUTO_DISCOVERY_PERIOD_DOC)
         .define(
             REGEX_SUBSCRIPTION_MODE_CONFIG,
             Type.STRING,

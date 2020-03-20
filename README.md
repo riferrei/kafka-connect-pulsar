@@ -84,15 +84,16 @@ At this point you should have ten records stored in Kafka, which means that the 
 ## Configuration reference
 
 This connector is highly customizable, and the table below explains the different configurations available.
-Keep in mind that though the table says that the properties `topic.whitelist` and `topic.pattern` are mandatory, they are in fact mutually exclusive.
+Keep in mind that though the table says that the properties `topic.whitelist` and `topic.regex` are mandatory, they are in fact mutually exclusive.
 
 | Configuration | Description | Mandatory? | Default | Possible Values
 | ----------- | ----------- | ------------- | ------------- | ------------- |
 | service.url | URL for the Pulsar cluster service | Yes | N/A | N/A |
 | service.http.url | URL for the Pulsar admin service | Yes | N/A | N/A |
 | topic.whitelist | List of allowed topics to read from | Yes | N/A | N/A |
+| topic.regex | Regex of allowed topics to read from | Yes | N/A | N/A |
+| topic.poll.interval.ms | How often to poll Pulsar for topics matching topic.regex | No | 300000 | N/A |
 | topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
-| topic.pattern | Topic pattern when subscribing to multiple topics | Yes | N/A | N/A |
 | subscription.name | The name of the consumer subscription | No | A random UUID if not specified | N/A |
 | batch.max.num.messages | Maximum number of messages per batch | No | 10 | N/A |
 | batch.max.num.bytes | Maximum number of bytes per batch | No | 1024 | N/A |
@@ -129,7 +130,6 @@ Keep in mind that though the table says that the properties `topic.whitelist` an
 | crypto.failure.action | Consumer should take action when it receives a message that can not be decrypted | No | FAIL | [FAIL, DISCARD, CONSUME] |
 | read.compacted | If enabled, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic | No | false | N/A |
 | subscription.initial.position | Initial position at which to set cursor when subscribing to a topic at first time | No | Latest | [Latest, Earliest] |
-| pattern.auto.discovery.period | Topic auto discovery period when using a pattern for topic's consumer | No | 1 | N/A |
 | regex.subscription.mode | When subscribing to a topic using a regular expression, you can pick a certain type of topics | No | PersistentOnly | [PersistentOnly, NonPersistentOnly, AllTopics] |
 | auto.update.partitions | If enabled, a consumer subscribes to partition increasement automatically | No | true | N/A |
 | replicate.subscription.state | If enabled, a subscription state is replicated to geo-replicated clusters | No | false | N/A |

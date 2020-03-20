@@ -1,11 +1,10 @@
 {
-    "name" : "topic-pattern",
+    "name" : "multi-topic-with-name",
     "config" : {
       "connector.class" : "com.riferrei.kafka.connect.pulsar.PulsarSourceConnector",
       "service.url": "pulsar://pulsar:6650",
       "service.http.url": "http://pulsar:8080",
-      "subscription.initial.position": "Earliest",
-      "topic.pattern": "persistent://public/default/.*",
-      "tasks.max" : "1"
+      "topic.whitelist": "orders, customers, products",
+      "tasks.max" : "3"
     }
 }

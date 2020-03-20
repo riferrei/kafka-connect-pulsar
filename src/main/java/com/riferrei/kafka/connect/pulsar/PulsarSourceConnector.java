@@ -18,9 +18,13 @@
 package com.riferrei.kafka.connect.pulsar;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
@@ -34,8 +38,11 @@ import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
 
 public class PulsarSourceConnector extends SourceConnector {
 
+    private final Logger log = LoggerFactory.getLogger(PulsarSourceConnector.class);
+
     private Map<String, String> originalProps;
     private PulsarSourceConnectorConfig config;
+    private TopicRegexMonitor topicRegexMonitor;
 
     @Override
     public String version() {
@@ -45,16 +52,6 @@ public class PulsarSourceConnector extends SourceConnector {
     @Override
     public ConfigDef config() {
         return CONFIG_DEF;
-    }
-
-    @Override
-    public void start(Map<String, String> originalProps) {
-        this.originalProps = originalProps;
-        this.config = new PulsarSourceConnectorConfig(originalProps);
-    }
-
-    @Override
-    public void stop() {
     }
 
     @Override
@@ -69,7 +66,7 @@ public class PulsarSourceConnector extends SourceConnector {
         boolean missingTopicDefinition = true;
         for (ConfigValue configValue : configValues) {
             if (configValue.name().equals(TOPIC_WHITELIST_CONFIG)
-                || configValue.name().equals(TOPIC_PATTERN_CONFIG)) {
+            || configValue.name().equals(TOPIC_REGEX_CONFIG)) {
                 if (configValue.value() != null) {
                     missingTopicDefinition = false;
                     break;
@@ -81,40 +78,57 @@ public class PulsarSourceConnector extends SourceConnector {
                 "There is no topic definition in the "
                 + "configuration. Either the property "
                 + "'%s' or '%s' must be set in the configuration.",
-                TOPIC_WHITELIST_CONFIG, TOPIC_PATTERN_CONFIG));
+                TOPIC_WHITELIST_CONFIG, TOPIC_REGEX_CONFIG));
         }
         return config;
     }
 
     @Override
+    public void start(Map<String, String> originalProps) {
+        this.originalProps = originalProps;
+        config = new PulsarSourceConnectorConfig(originalProps);
+        if (config.getList(TOPIC_WHITELIST_CONFIG) == null
+            && config.getString(TOPIC_REGEX_CONFIG) != null) {
+            String topicRegex = config.getString(TOPIC_REGEX_CONFIG);
+            String regexSubscriptionMode = config.getString(REGEX_SUBSCRIPTION_MODE_CONFIG);
+            long pollInterval = config.getLong(TOPIC_POLL_INTERVAL_MS_CONFIG);
+            String serviceHttpUrl = config.getString(SERVICE_HTTP_URL_CONFIG);
+            topicRegexMonitor = new TopicRegexMonitor(context, topicRegex,
+                regexSubscriptionMode, pollInterval, serviceHttpUrl);
+            topicRegexMonitor.start();
+        }
+    }
+
+    @Override
     public List<Map<String, String>> taskConfigs(int maxTasks) {
-        final List<Map<String, String>> taskConfigs = new ArrayList<>();
-        List<String> whiteList = config.getList(TOPIC_WHITELIST_CONFIG);
-        if (whiteList != null && !whiteList.isEmpty()) {
-            List<String> blackList = config.getList(TOPIC_BLACKLIST_CONFIG);
-            if (blackList != null && !blackList.isEmpty()) {
-                whiteList = new ArrayList<>(whiteList);
-                whiteList.removeAll(blackList);
-            }
-            int numGroups = Math.min(whiteList.size(), maxTasks);
-            List<List<String>> topicSources = ConnectorUtils.groupPartitions(whiteList, numGroups);
+        List<Map<String, String>> taskConfigs = new ArrayList<>();
+        List<String> topicList = config.getList(TOPIC_WHITELIST_CONFIG);
+        if (topicList == null) {
+            topicList = topicRegexMonitor.getTopics();
+        }
+        List<String> blackList = config.getList(TOPIC_BLACKLIST_CONFIG);
+        if (blackList != null && !blackList.isEmpty()) {
+            topicList = new ArrayList<>(topicList);
+            topicList.removeAll(blackList);
+        }
+        if (topicList.isEmpty()) {
+            taskConfigs = Collections.emptyList();
+            log.warn("No tasks will be created because there is zero topics to subscribe.");
+        } else {
+            int numGroups = Math.min(topicList.size(), maxTasks);
+            List<List<String>> topicSources = ConnectorUtils.groupPartitions(topicList, numGroups);
             for (List<String> topicSource : topicSources) {
                 Map<String, String> taskConfig = new HashMap<>(originalProps);
                 taskConfig.put(TOPIC_NAMES, String.join(", ", topicSource));
                 taskConfigs.add(taskConfig);
             }
-        } else {
-            // If the 'topic.pattern' configuration has been set, then
-            // there will be only one task to handle the subscription.
-            // Since there is no way to figure out how many topics the
-            // consumer will subscribe to; we can't infer the number of
-            // tasks to be created.
-            String topicPattern = config.getString(TOPIC_PATTERN_CONFIG);
-            Map<String, String> taskConfig = new HashMap<>(originalProps);
-            taskConfig.put(TOPIC_PATTERN, topicPattern);
-            taskConfigs.add(taskConfig);
         }
         return taskConfigs;
+    }
+
+    @Override
+    public void stop() {
+        topicRegexMonitor.shutdown();
     }
 
 }

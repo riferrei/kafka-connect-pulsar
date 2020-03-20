@@ -26,20 +26,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.naming.TopicName;
 
 import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
 
@@ -47,7 +45,6 @@ public class PulsarSourceTask extends SourceTask {
 
     private static Logger log = LoggerFactory.getLogger(PulsarSourceTask.class);
 
-    private List<String> partitionedTopics;
     private PulsarSourceConnectorConfig config;
     private PulsarClient client;
     private Consumer<byte[]> consumer;
@@ -66,57 +63,26 @@ public class PulsarSourceTask extends SourceTask {
         int batchMaxNumMessages = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_MESSAGES_CONFIG);
         int batchMaxNumBytes = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_BYTES_CONFIG);
         int batchTimeout = config.getInt(PulsarSourceConnectorConfig.BATCH_TIMEOUT_CONFIG);
-        ConsumerBuilder<byte[]> builder = null;
         try {
             client = PulsarClient.builder()
                 .serviceUrl(serviceUrl)
                 .loadConf(clientConfig())
                 .build();
-            builder = client.newConsumer()
+            consumer = client.newConsumer()
+                .topics(getTopicNames(properties))
                 .subscriptionName(subscriptionName)
                 .loadConf(consumerConfig())
                 .batchReceivePolicy(BatchReceivePolicy.builder()
                     .timeout(batchTimeout, TimeUnit.MILLISECONDS)
                     .maxNumMessages(batchMaxNumMessages)
                     .maxNumBytes(batchMaxNumBytes)
-                    .build());
-            if (properties.containsKey(TOPIC_PATTERN)) {
-                builder.topicsPattern(properties.get(TOPIC_PATTERN));
-            } else if (properties.containsKey(TOPIC_NAMES)) {
-                partitionedTopics = getPartitionedTopics(properties);
-                builder.topics(getTopicNames(properties));
-            }
-            consumer = builder.subscribe();
+                    .build())
+                .subscribe();
         } catch (PulsarClientException pce) {
             if (log.isErrorEnabled()) {
                 log.error("Exception thrown while creating consumer: ", pce);
             }
         }
-    }
-
-    private List<String> getPartitionedTopics(Map<String, String> properties) {
-        List<String> partitionedTopics = new ArrayList<>();
-        List<String> topicNames = getTopicNames(properties);
-        String serviceHttpUrl = properties.get(SERVICE_HTTP_URL_CONFIG);
-        PulsarAdmin pulsarAdmin = null;
-        try {
-            pulsarAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(serviceHttpUrl)
-                .build();
-            Topics topics = pulsarAdmin.topics();
-            for (String topicName : topicNames) {
-                if (topics.getPartitionedTopicMetadata(topicName).partitions > 0) {
-                    partitionedTopics.add(topicName);
-                }
-            }
-        } catch (PulsarClientException | PulsarAdminException pe) {
-            if (log.isErrorEnabled()) {
-                log.error("Exception thrown during getPartitionedTopics(): ", pe);
-            }
-        } finally {
-            pulsarAdmin.close();
-        }
-        return partitionedTopics;
     }
 
     private List<String> getTopicNames(Map<String, String> properties) {
@@ -167,7 +133,6 @@ public class PulsarSourceTask extends SourceTask {
         consumerConfig.put("cryptoFailureAction", config.getString(CRYPTO_FAILURE_ACTION_CONFIG));
         consumerConfig.put("readCompacted", config.getBoolean(READ_COMPACTED_CONFIG));
         consumerConfig.put("subscriptionInitialPosition", config.getString(SUBSCRIPTION_INITIAL_POSITION_CONFIG));
-        consumerConfig.put("patternAutoDiscoveryPeriod", config.getInt(PATTERN_AUTO_DISCOVERY_PERIOD_CONFIG));
         consumerConfig.put("regexSubscriptionMode", config.getString(REGEX_SUBSCRIPTION_MODE_CONFIG));
         consumerConfig.put("autoUpdatePartitions", config.getBoolean(AUTO_UPDATE_PARTITIONS_CONFIG));
         consumerConfig.put("replicateSubscriptionState", config.getBoolean(REPLICATE_SUBSCRIPTION_STATE_CONFIG));
@@ -196,31 +161,23 @@ public class PulsarSourceTask extends SourceTask {
     }
 
     private SourceRecord createSourceRecord(Message<byte[]> message) {
-        String topicName = getTopicName(message.getTopicName());
+        String topic = getTopicName(message.getTopicName());
+        String offset = message.getMessageId().toString();
         byte[] recordKey = message.getKeyBytes();
         byte[] recordValue = message.getData();
-        byte[] messageId = message.getMessageId().toByteArray();
-        String producerName = message.getProducerName();
-        Map<String, String> sourcePartition = Collections
-            .singletonMap("producer", producerName);
-        Map<String, byte[]> sourceOffset = Collections
-            .singletonMap("messageId", messageId);
+        Map<String, String> sourcePartition =
+            Collections.singletonMap("topic", topic);
+        Map<String, String> sourceOffset =
+            Collections.singletonMap("offset", offset);
         return new SourceRecord(
-            sourcePartition, sourceOffset, topicName,
+            sourcePartition, sourceOffset, topic,
             null, recordKey, null, recordValue);
     }
 
     private String getTopicName(String topicName) {
-        // If the topic is partitioned then we need to
-        // remove the '-partition-n' suffix to avoid
-        // ending up with multiple topics in the Kafka
-        // side that ultimately represent only 1 topic.
-        for (String partitionedTopic : partitionedTopics) {
-            if (topicName.contains(partitionedTopic)
-                && topicName.contains("-partition-")) {
-                topicName = topicName.replaceAll("-partition-\\d+", "");
-                break;
-            }
+        TopicName tName = TopicName.get(topicName);
+        if (tName.isPartitioned()) {
+            topicName = tName.getPartitionedTopicName();
         }
         URI topic = null;
         try {
