@@ -104,12 +104,8 @@ public class PulsarSourceConnector extends SourceConnector {
         List<Map<String, String>> taskConfigs = new ArrayList<>();
         List<String> topicList = config.getList(TOPIC_WHITELIST_CONFIG);
         if (topicList != null) {
-            List<String> tempList = new ArrayList<>(topicList);
-            topicList = new ArrayList<>(tempList.size());
-            for (String topic : tempList) {
-                TopicName topicName = TopicName.get(topic);
-                topicList.add(topicName.getPartitionedTopicName());
-            }
+            topicList = new ArrayList<>(topicList);
+            topicList.replaceAll(topic -> TopicName.get(topic).getPartitionedTopicName());
         } else {
             topicList = new ArrayList<>();
         }
@@ -123,12 +119,7 @@ public class PulsarSourceConnector extends SourceConnector {
         }
         List<String> blackList = config.getList(TOPIC_BLACKLIST_CONFIG);
         if (blackList != null) {
-            List<String> tempList = new ArrayList<>(blackList);
-            blackList = new ArrayList<>(tempList.size());
-            for (String topic : tempList) {
-                TopicName topicName = TopicName.get(topic);
-                blackList.add(topicName.getPartitionedTopicName());
-            }
+            blackList.replaceAll(topic -> TopicName.get(topic).getPartitionedTopicName());
             topicList.removeAll(blackList);
         }
         if (topicList.isEmpty()) {
