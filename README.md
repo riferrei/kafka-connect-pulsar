@@ -84,7 +84,8 @@ At this point you should have ten records stored in Kafka, which means that the 
 ## Configuration reference
 
 This connector is highly customizable, and the table below explains the different configurations available.
-Keep in mind that though the table says that the properties `topic.whitelist` and `topic.regex` are mandatory, they are in fact mutually exclusive.
+The table says that the properties `topic.whitelist` and `topic.regex` are mandatory but at least one of them is in fact mandatory.
+They can complement each other, though.
 
 | Configuration | Description | Mandatory? | Default | Possible Values
 | ----------- | ----------- | ------------- | ------------- | ------------- |

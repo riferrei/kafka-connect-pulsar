@@ -132,7 +132,7 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
     }
 
     @Test
-    public void checkReadFromMultipleTopicsUsingWhitelist() {
+    public void checkMultipleTopicsUsingOnlyWhitelist() {
         final int numMsgsPerTopic = 5;
         final int numMsgsTotal = 15;
         Map<String, String> connectorProps = new HashMap<>();
@@ -157,7 +157,7 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
     }
 
     @Test
-    public void checkReadFromMultipleTopicsUsingRegex() {
+    public void checkMultipleTopicsUsingOnlyRegex() {
         final int numMsgsPerTopic = 5;
         final int numMsgsTotal = 15;
         assertDoesNotThrow(() -> {
@@ -171,6 +171,39 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgsTotal));
         connectorProps.put(SUBSCRIPTION_INITIAL_POSITION_CONFIG,
             SubscriptionInitialPosition.Earliest.name());
+        connectorProps.put(TOPIC_REGEX_CONFIG, TOPIC_REGEX_VALUE);
+        Map<String, String> taskProps = getTaskProps(connectorProps);
+        PulsarSourceTask task = new PulsarSourceTask();
+        assertDoesNotThrow(() -> {
+            try {
+                task.start(taskProps);
+                List<SourceRecord> records = task.poll();
+                assertEquals(numMsgsTotal, records.size());
+            } finally {
+                task.stop();
+            }
+        });
+    }
+
+    @Test
+    public void checkMultipleTopicsUsingWhitelistAndRegex() {
+        final int numMsgsPerTopic = 5;
+        final int numMsgsTotal = 25;
+        assertDoesNotThrow(() -> {
+            produceMessages(TOPIC[0], numMsgsPerTopic);
+            produceMessages(TOPIC[1], numMsgsPerTopic);
+            produceMessages(TOPIC[2], numMsgsPerTopic);
+            produceMessages(TOPIC[3], numMsgsPerTopic);
+            produceMessages(TOPIC[4], numMsgsPerTopic);
+            produceMessages(TOPIC[5], numMsgsPerTopic);
+        });
+        Map<String, String> connectorProps = new HashMap<>();
+        connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
+        connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
+        connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgsTotal));
+        connectorProps.put(SUBSCRIPTION_INITIAL_POSITION_CONFIG,
+            SubscriptionInitialPosition.Earliest.name());
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
         connectorProps.put(TOPIC_REGEX_CONFIG, TOPIC_REGEX_VALUE);
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();

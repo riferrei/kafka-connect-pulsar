@@ -33,6 +33,7 @@ import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.util.ConnectorUtils;
+import org.apache.pulsar.common.naming.TopicName;
 
 import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
 
@@ -87,8 +88,7 @@ public class PulsarSourceConnector extends SourceConnector {
     public void start(Map<String, String> originalProps) {
         this.originalProps = originalProps;
         config = new PulsarSourceConnectorConfig(originalProps);
-        if (config.getList(TOPIC_WHITELIST_CONFIG) == null
-            && config.getString(TOPIC_REGEX_CONFIG) != null) {
+        if (config.getString(TOPIC_REGEX_CONFIG) != null) {
             String topicRegex = config.getString(TOPIC_REGEX_CONFIG);
             String regexSubscriptionMode = config.getString(REGEX_SUBSCRIPTION_MODE_CONFIG);
             long pollInterval = config.getLong(TOPIC_POLL_INTERVAL_MS_CONFIG);
@@ -103,12 +103,32 @@ public class PulsarSourceConnector extends SourceConnector {
     public List<Map<String, String>> taskConfigs(int maxTasks) {
         List<Map<String, String>> taskConfigs = new ArrayList<>();
         List<String> topicList = config.getList(TOPIC_WHITELIST_CONFIG);
-        if (topicList == null) {
-            topicList = topicRegexMonitor.getTopics();
+        if (topicList != null) {
+            List<String> tempList = new ArrayList<>(topicList);
+            topicList = new ArrayList<>(tempList.size());
+            for (String topic : tempList) {
+                TopicName topicName = TopicName.get(topic);
+                topicList.add(topicName.getPartitionedTopicName());
+            }
+        } else {
+            topicList = new ArrayList<>();
+        }
+        if (topicRegexMonitor != null) {
+            List<String> regexList = topicRegexMonitor.getTopics();
+            for (String topic : regexList) {
+                if (!topicList.contains(topic)) {
+                    topicList.add(topic);
+                }
+            }
         }
         List<String> blackList = config.getList(TOPIC_BLACKLIST_CONFIG);
-        if (blackList != null && !blackList.isEmpty()) {
-            topicList = new ArrayList<>(topicList);
+        if (blackList != null) {
+            List<String> tempList = new ArrayList<>(blackList);
+            blackList = new ArrayList<>(tempList.size());
+            for (String topic : tempList) {
+                TopicName topicName = TopicName.get(topic);
+                blackList.add(topicName.getPartitionedTopicName());
+            }
             topicList.removeAll(blackList);
         }
         if (topicList.isEmpty()) {
