@@ -221,7 +221,6 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     // Non-Options
     public static final String TOPIC_NAMES = "topic.names";
-    public static final String TOPIC_REGEX = TOPIC_REGEX_CONFIG;
     public static final ConfigDef CONFIG_DEF = createConfigDef();
 
     private static ConfigDef createConfigDef() {

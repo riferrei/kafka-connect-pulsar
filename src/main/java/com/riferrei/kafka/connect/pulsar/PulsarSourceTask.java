@@ -80,7 +80,7 @@ public class PulsarSourceTask extends SourceTask {
                 .subscribe();
         } catch (PulsarClientException pce) {
             if (log.isErrorEnabled()) {
-                log.error("Exception thrown while creating consumer: ", pce);
+                log.error("Error while creating consumer: ", pce);
             }
         }
     }
@@ -154,7 +154,7 @@ public class PulsarSourceTask extends SourceTask {
         } catch (PulsarClientException pce) {
             consumer.negativeAcknowledge(messages);
             if (log.isErrorEnabled()) {
-                log.error("Exception thrown during poll(): ", pce);
+                log.error("Error while executing a poll(): ", pce);
             }
         }
         return records;
@@ -184,7 +184,7 @@ public class PulsarSourceTask extends SourceTask {
             topic = new URI(topicName);
         } catch (Exception ex) {
             if (log.isErrorEnabled()) {
-                log.error("Exception thrown while parsing the topic: ", ex);
+                log.error("Error while parsing the topic %s", topicName);
             }
             return null;
         }

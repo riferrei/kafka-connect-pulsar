@@ -18,10 +18,11 @@
 package com.riferrei.kafka.connect.pulsar;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +33,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+
+import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
 
 public class TopicRegexMonitor extends Thread {
 
@@ -42,8 +46,8 @@ public class TopicRegexMonitor extends Thread {
 
     private PulsarAdmin pulsarAdmin;
     private ConnectorContext context;
-    private String topicRegex;
-    private RegexSubscriptionMode filter;
+    private Pattern topicsPattern;
+    private RegexSubscriptionMode regexSubscriptionMode;
     private long pollInterval;
     private List<String> topics;
 
@@ -51,8 +55,8 @@ public class TopicRegexMonitor extends Thread {
         String topicRegex, String regexSubscriptionMode,
         long pollInterval, String serviceHttpUrl) {
         this.context = context;
-        this.topicRegex = topicRegex;
-        this.filter = RegexSubscriptionMode.valueOf(regexSubscriptionMode);
+        this.topicsPattern = Pattern.compile(topicRegex);
+        this.regexSubscriptionMode = RegexSubscriptionMode.valueOf(regexSubscriptionMode);
         this.pollInterval = pollInterval;
         try {
             pulsarAdmin = PulsarAdmin.builder()
@@ -60,7 +64,7 @@ public class TopicRegexMonitor extends Thread {
                 .build();
         } catch (PulsarClientException pce) {
             if (log.isErrorEnabled()) {
-                log.error("Exception thrown while connecting to Pulsar's admin service: ", pce);
+                log.error("Error while connecting to Pulsar admin service: ", pce);
             }
         }
         this.topics = getTopics();
@@ -90,37 +94,41 @@ public class TopicRegexMonitor extends Thread {
     }
 
     public synchronized List<String> getTopics() {
-        List<String> topics = null;
+        final List<String> topics = new ArrayList<>();
         try {
             Topics topicAdmin = pulsarAdmin.topics();
-            TopicName topicName = TopicName.get(topicRegex);
+            TopicName topicName = TopicName.get(topicsPattern.pattern());
             NamespaceName namespaceName = topicName.getNamespaceObject();
-            List<String> tempList = topicAdmin.getList(namespaceName.toString());
-            if (tempList != null && !tempList.isEmpty()) {
-                topics = new ArrayList<>(tempList.size());
-                for (String topic : tempList) {
-                    topicName = TopicName.get(topic);
-                    topic = topicName.getPartitionedTopicName();
-                    if (filter.equals(RegexSubscriptionMode.PersistentOnly)) {
-                        if (!topicName.isPersistent()) {
-                            continue;
-                        }
-                    }
-                    if (filter.equals(RegexSubscriptionMode.NonPersistentOnly)) {
-                        if (topicName.isPersistent()) {
-                            continue;
-                        }
-                    }
-                    if (!topics.contains(topic)) {
-                        topics.add(topic);
-                    }
+            List<String> topicList = topicAdmin.getList(namespaceName.toString());
+            if (topicList != null && !topicList.isEmpty()) {
+                topicList = PulsarClientImpl.topicsPatternFilter(topicList, topicsPattern);
+                switch (regexSubscriptionMode) {
+                    case PersistentOnly:
+                        topics.addAll(
+                            topicList
+                                .stream()
+                                .filter(topic -> TopicName.get(topic).isPersistent())
+                                .collect(Collectors.toList()));
+                        break;
+                    case NonPersistentOnly:
+                        topics.addAll(
+                            topicList
+                                .stream()
+                                .filter(topic -> !TopicName.get(topic).isPersistent())
+                                .collect(Collectors.toList()));
+                        break;
+                    case AllTopics:
+                        topics.addAll(topicList);
+                        break;
+                    default:
+                        log.warn("Invalid value set for the property '%s': %s",
+                            REGEX_SUBSCRIPTION_MODE_CONFIG, regexSubscriptionMode);
+                        break;
                 }
-            } else {
-                topics = Collections.emptyList();
             }
         } catch (PulsarAdminException pae) {
             if (log.isErrorEnabled()) {
-                log.error("Exception thrown while retrieving topics from namespace: ", pae);
+                log.error("Error while retrieving the topics: ", pae);
             }
         }
         return topics;
