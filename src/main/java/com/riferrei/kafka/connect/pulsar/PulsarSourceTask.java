@@ -340,8 +340,8 @@ public class PulsarSourceTask extends SourceTask {
         GenericRecord record = message.getValue();
         Struct value = buildStruct(record, valueSchema);
         return new SourceRecord(
-            Collections.singletonMap(topic, topic),
-            Collections.singletonMap(offset, offset),
+            Collections.singletonMap(sourcePartition, topic),
+            Collections.singletonMap(sourceOffset, offset),
             topic, Schema.BYTES_SCHEMA, message.getKeyBytes(),
             value.schema(), value);
     }
@@ -625,8 +625,8 @@ public class PulsarSourceTask extends SourceTask {
         }
     }
 
-    private static String topic = "topic";
-    private static String offset = "offset";
+    private static String sourcePartition = "topic";
+    private static String sourceOffset = "offset";
     private static String key = "key";
     private static String value = "value";
 
