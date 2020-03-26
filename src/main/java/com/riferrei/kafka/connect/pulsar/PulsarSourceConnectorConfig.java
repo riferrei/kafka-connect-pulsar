@@ -58,6 +58,10 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final String TOPIC_BLACKLIST_DOC = "List of topics to exclude from read";
     private static final String TOPIC_BLACKLIST_DEFAULT = null;
 
+    public static final String STRUCT_ENABLED_CONFIG = "struct.enabled";
+    private static final String STRUCT_ENABLED_DOC = "If enabled, messages serialized with JSON or Avro will be mapped to structs";
+    private static final boolean STRUCT_ENABLED_DEFAULT = false;
+
     public static final String SUBSCRIPTION_NAME_CONFIG = "subscription.name";
     private static final String SUBSCRIPTION_NAME_DOC = "The name of the consumer subscription";
     private static final String SUBSCRIPTION_NAME_DEFAULT = null;
@@ -266,6 +270,12 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
             TOPIC_BLACKLIST_DEFAULT,
             Importance.HIGH,
             TOPIC_BLACKLIST_DOC)
+        .define(
+            STRUCT_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            STRUCT_ENABLED_DEFAULT,
+            Importance.HIGH,
+            STRUCT_ENABLED_DOC)
         .define(
             SUBSCRIPTION_NAME_CONFIG,
             Type.STRING,

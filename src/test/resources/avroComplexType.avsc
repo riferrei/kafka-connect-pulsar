@@ -1,0 +1,82 @@
+{
+    "namespace": "com.riferrei.kafka.connect.pulsar",
+    "type": "record",
+    "name": "AvroGenComplexType",
+    "fields": [
+        {
+            "name": "stringField",
+            "type": "string"
+        },
+        {
+            "name": "booleanField",
+            "type": "boolean"
+        },
+        {
+            "name": "bytesField",
+            "type": "bytes"
+        },
+        {
+            "name": "intField",
+            "type": "int"
+        },
+        {
+            "name": "longField",
+            "type": "long"
+        },
+        {
+            "name": "floatField",
+            "type": "float"
+        },
+        {
+            "name": "doubleField",
+            "type": "double"
+        },
+        {
+            "name": "mapField",
+            "type": [
+                "null",
+                {
+                    "type": "map",
+                    "values": "double"
+                }
+            ],
+            "default": null
+        },
+        {
+            "name": "innerField",
+            "type": [
+                "null",
+                {
+                    "type": "record",
+                    "name": "AvroGenInnerType",
+                    "fields": [
+                        {
+                            "name": "doubleField",
+                            "type": "double"
+                        },
+                        {
+                            "name": "arrayField",
+                            "type": {
+                                "type": "array",
+                                "items": "string"
+                            }
+                        },
+                        {
+                            "name": "enumField",
+                            "type": {
+                                "type": "enum",
+                                "name": "AvroGenMultipleOptions",
+                                "symbols": [
+                                    "FirstOption", "SecondOption",
+                                    "ThirdOption", "FourthOption"
+                                ],
+                                "default": "FirstOption"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "default": null
+        }
+    ]
+}

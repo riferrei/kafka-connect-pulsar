@@ -59,7 +59,8 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
         Map<String, String> props = new HashMap<>();
         props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
         props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
-        props.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
+        props.put(TOPIC_WHITELIST_CONFIG, listToString(REUSABLE_TOPICS[0],
+            REUSABLE_TOPICS[1], REUSABLE_TOPICS[2]));
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         assertEquals(3, connector.taskConfigs(3).size());
@@ -70,8 +71,10 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
         Map<String, String> props = new HashMap<>();
         props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
         props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
-        props.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
-        props.put(TOPIC_BLACKLIST_CONFIG, listToString(TOPIC[2], TOPIC[3], TOPIC[4]));
+        props.put(TOPIC_WHITELIST_CONFIG, listToString(REUSABLE_TOPICS[0],
+            REUSABLE_TOPICS[1], REUSABLE_TOPICS[2]));
+        props.put(TOPIC_BLACKLIST_CONFIG, listToString(REUSABLE_TOPICS[2],
+            REUSABLE_TOPICS[3], REUSABLE_TOPICS[4]));
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         assertEquals(2, connector.taskConfigs(3).size());
@@ -80,9 +83,9 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
     @Test
     public void checkTaskCreationUsingRegex() {
         assertDoesNotThrow(() -> {
-            produceMessages(TOPIC[0], 1);
-            produceMessages(TOPIC[1], 1);
-            produceMessages(TOPIC[2], 1);
+            produceBytesBasedMessages(REUSABLE_TOPICS[0], 1);
+            produceBytesBasedMessages(REUSABLE_TOPICS[1], 1);
+            produceBytesBasedMessages(REUSABLE_TOPICS[2], 1);
         });
         Map<String, String> props = new HashMap<>();
         props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
@@ -96,15 +99,15 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
     @Test
     public void checkBlacklistAppliedToRegex() {
         assertDoesNotThrow(() -> {
-            produceMessages(TOPIC[0], 1);
-            produceMessages(TOPIC[1], 1);
-            produceMessages(TOPIC[2], 1);
+            produceBytesBasedMessages(REUSABLE_TOPICS[0], 1);
+            produceBytesBasedMessages(REUSABLE_TOPICS[1], 1);
+            produceBytesBasedMessages(REUSABLE_TOPICS[2], 1);
         });
         Map<String, String> props = new HashMap<>();
         props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
         props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
         props.put(TOPIC_REGEX_CONFIG, TOPIC_REGEX_VALUE);
-        props.put(TOPIC_BLACKLIST_CONFIG, listToString(TOPIC[2]));
+        props.put(TOPIC_BLACKLIST_CONFIG, listToString(REUSABLE_TOPICS[2]));
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         assertEquals(2, connector.taskConfigs(3).size());
@@ -115,12 +118,14 @@ public class PulsarSourceConnectorTest extends AbstractBasicTest {
         Map<String, String> props = new HashMap<>();
         props.put(SERVICE_URL_CONFIG, SERVICE_URL_VALUE);
         props.put(SERVICE_HTTP_URL_CONFIG, SERVICE_HTTP_URL_VALUE);
-        props.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
+        props.put(TOPIC_WHITELIST_CONFIG, listToString(REUSABLE_TOPICS[0],
+            REUSABLE_TOPICS[1], REUSABLE_TOPICS[2]));
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(props);
         List<Map<String, String>> taskConfigs = connector.taskConfigs(2);
-        assertEquals(listToString(TOPIC[0], TOPIC[1]), taskConfigs.get(0).get(TOPIC_NAMES));
-        assertEquals(TOPIC[2], taskConfigs.get(1).get(TOPIC_NAMES));
+        assertEquals(listToString(REUSABLE_TOPICS[0], REUSABLE_TOPICS[1]),
+            taskConfigs.get(0).get(TOPIC_NAMES));
+        assertEquals(REUSABLE_TOPICS[2], taskConfigs.get(1).get(TOPIC_NAMES));
         
     }
     

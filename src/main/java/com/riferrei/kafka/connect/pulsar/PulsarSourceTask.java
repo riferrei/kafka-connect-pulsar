@@ -23,21 +23,36 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.apache.avro.Schema.Field;
+import org.apache.avro.Schema.Parser;
+import org.apache.avro.Schema.Type;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecordUtil;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.shade.org.apache.avro.generic.GenericData;
 
 import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
 
@@ -46,8 +61,11 @@ public class PulsarSourceTask extends SourceTask {
     private static Logger log = LoggerFactory.getLogger(PulsarSourceTask.class);
 
     private PulsarSourceConnectorConfig config;
-    private PulsarClient client;
-    private Consumer<byte[]> consumer;
+    private PulsarAdmin pulsarAdmin;
+    private PulsarClient pulsarClient;
+    private List<Consumer<byte[]>> bytesBasedConsumers;
+    private List<Consumer<GenericRecord>> structBasedConsumers;
+    private Map<String, Schema> schemas;
 
     @Override
     public String version() {
@@ -57,42 +75,150 @@ public class PulsarSourceTask extends SourceTask {
     @Override
     public void start(Map<String, String> properties) {
         config = new PulsarSourceConnectorConfig(properties);
-        String serviceUrl = config.getString(PulsarSourceConnectorConfig.SERVICE_URL_CONFIG);
-        String subscriptionName = config.getString(PulsarSourceConnectorConfig.SUBSCRIPTION_NAME_CONFIG);
-        subscriptionName = subscriptionName == null ? UUID.randomUUID().toString() : subscriptionName;
-        int batchMaxNumMessages = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_MESSAGES_CONFIG);
-        int batchMaxNumBytes = config.getInt(PulsarSourceConnectorConfig.BATCH_MAX_NUM_BYTES_CONFIG);
-        int batchTimeout = config.getInt(PulsarSourceConnectorConfig.BATCH_TIMEOUT_CONFIG);
+        String serviceHttpUrl = config.getString(SERVICE_HTTP_URL_CONFIG);
+        String serviceUrl = config.getString(SERVICE_URL_CONFIG);
         try {
-            client = PulsarClient.builder()
+            pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(serviceHttpUrl)
+                .build();
+            pulsarClient = PulsarClient.builder()
                 .serviceUrl(serviceUrl)
                 .loadConf(clientConfig())
                 .build();
-            consumer = client.newConsumer()
-                .topics(getTopicNames(properties))
-                .subscriptionName(subscriptionName)
-                .loadConf(consumerConfig())
-                .batchReceivePolicy(BatchReceivePolicy.builder()
-                    .timeout(batchTimeout, TimeUnit.MILLISECONDS)
-                    .maxNumMessages(batchMaxNumMessages)
-                    .maxNumBytes(batchMaxNumBytes)
-                    .build())
-                .subscribe();
         } catch (PulsarClientException pce) {
             if (log.isErrorEnabled()) {
-                log.error("Error while creating consumer: ", pce);
+                log.error("Error while creating clients: ", pce);
             }
         }
+        List<String> topics = getTopicNames(properties);
+        String subscriptionName = config.getString(SUBSCRIPTION_NAME_CONFIG);
+        if (subscriptionName == null) {
+            subscriptionName = UUID.randomUUID().toString();
+        }
+        int batchMaxNumMessages = config.getInt(BATCH_MAX_NUM_MESSAGES_CONFIG);
+        int batchMaxNumBytes = config.getInt(BATCH_MAX_NUM_BYTES_CONFIG);
+        int batchTimeout = config.getInt(BATCH_TIMEOUT_CONFIG);
+        boolean structEnabled = config.getBoolean(STRUCT_ENABLED_CONFIG);
+        createConsumers(topics, subscriptionName, batchTimeout,
+            batchMaxNumMessages, batchMaxNumBytes, structEnabled);
     }
 
     private List<String> getTopicNames(Map<String, String> properties) {
-        String topicNames = properties.get(PulsarSourceConnectorConfig.TOPIC_NAMES);
+        String topicNames = properties.get(TOPIC_NAMES);
         String[] topicList = topicNames.split(",");
         List<String> topics = new ArrayList<>(topicList.length);
         for (String topic : topicList) {
             topics.add(topic.trim());
         }
         return topics;
+    }
+
+    private String schemaKey(String topic, long schemaVersion) {
+        return String.format("%s/%d", topic, schemaVersion);
+    }
+
+    private void createConsumers(List<String> topics, String subscriptionName,
+        int batchTimeout, int batchMaxNumMessages, int batchMaxNumBytes,
+        boolean structEnabled) {
+        bytesBasedConsumers = new ArrayList<>();
+        structBasedConsumers = new ArrayList<>();
+        schemas = new HashMap<>();
+        for (String topic : topics) {
+            if (structEnabled) {
+                SchemaInfoWithVersion schemaInfoWithVersion = null;
+                try {
+                    schemaInfoWithVersion = pulsarAdmin.schemas()
+                        .getSchemaInfoWithVersion(topic);
+                } catch (PulsarAdminException pae) {
+                    // Ignore any exceptions thrown
+                }
+                if (schemaInfoWithVersion != null) {
+                    SchemaInfo schemaInfo = schemaInfoWithVersion.getSchemaInfo();
+                    if (schemaInfo.getType().equals(SchemaType.JSON)
+                        || schemaInfo.getType().equals(SchemaType.AVRO)) {
+                        long schemaVersion = schemaInfoWithVersion.getVersion();
+                        String schemaKey = schemaKey(topic, schemaVersion);
+                        Schema schema = createConnectSchema(schemaInfo);
+                        schemas.put(schemaKey, schema);
+                        try {
+                            structBasedConsumers.add(createStructBasedConsumer(topic,
+                                subscriptionName, batchTimeout, batchMaxNumMessages,
+                                batchMaxNumBytes));
+                        } catch (PulsarClientException pce) {
+                            if (log.isErrorEnabled()) {
+                                log.error("Error while creating a consumer for topic '%s': ", topic);
+                                log.error("Error: ", pce);
+                            }
+                        }
+                    } else {
+                        try {
+                            bytesBasedConsumers.add(createBytesBasedConsumer(topic,
+                                subscriptionName, batchTimeout, batchMaxNumMessages,
+                                batchMaxNumBytes));
+                        } catch (PulsarClientException pce) {
+                            if (log.isErrorEnabled()) {
+                                log.error("Error while creating a consumer for topic '%s': ", topic);
+                                log.error("Error: ", pce);
+                            }
+                        }
+                    }
+                } else {
+                    try {
+                        bytesBasedConsumers.add(createBytesBasedConsumer(topic,
+                            subscriptionName, batchTimeout, batchMaxNumMessages,
+                            batchMaxNumBytes));
+                    } catch (PulsarClientException pce) {
+                        if (log.isErrorEnabled()) {
+                            log.error("Error while creating a consumer for topic '%s': ", topic);
+                            log.error("Error: ", pce);
+                        }
+                    }
+                }
+            } else {
+                try {
+                    bytesBasedConsumers.add(createBytesBasedConsumer(topic,
+                        subscriptionName, batchTimeout, batchMaxNumMessages,
+                        batchMaxNumBytes));
+                } catch (PulsarClientException pce) {
+                    if (log.isErrorEnabled()) {
+                        log.error("Error while creating a consumer for topic '%s': ", topic);
+                        log.error("Error: ", pce);
+                    }
+                }
+            }
+        }
+    }
+
+    private Consumer<GenericRecord> createStructBasedConsumer(String topic,
+        String subscriptionName, int batchTimeout, int batchMaxNumMessages,
+        int batchMaxNumBytes) throws PulsarClientException {
+        return pulsarClient
+            .newConsumer(org.apache.pulsar.client.api.Schema.AUTO_CONSUME())
+            .topic(topic)
+            .subscriptionName(subscriptionName)
+            .loadConf(consumerConfig())
+            .batchReceivePolicy(BatchReceivePolicy.builder()
+                .timeout(batchTimeout, TimeUnit.MILLISECONDS)
+                .maxNumMessages(batchMaxNumMessages)
+                .maxNumBytes(batchMaxNumBytes)
+                .build())
+            .subscribe();
+    }
+
+    private Consumer<byte[]> createBytesBasedConsumer(String topic,
+        String subscriptionName, int batchTimeout, int batchMaxNumMessages,
+        int batchMaxNumBytes) throws PulsarClientException {
+        return pulsarClient
+            .newConsumer(org.apache.pulsar.client.api.Schema.BYTES)
+            .topic(topic)
+            .subscriptionName(subscriptionName)
+            .loadConf(consumerConfig())
+            .batchReceivePolicy(BatchReceivePolicy.builder()
+                .timeout(batchTimeout, TimeUnit.MILLISECONDS)
+                .maxNumMessages(batchMaxNumMessages)
+                .maxNumBytes(batchMaxNumBytes)
+                .build())
+            .subscribe();
     }
 
     private Map<String, Object> clientConfig() {
@@ -142,36 +268,203 @@ public class PulsarSourceTask extends SourceTask {
     @Override
     public List<SourceRecord> poll() throws InterruptedException {
         List<SourceRecord> records = new ArrayList<>();
-        Messages<byte[]> messages = null;
-        try {
-            messages = consumer.batchReceive();
-            if (messages != null && messages.size() > 0) {
-                for (Message<byte[]> message : messages) {
-                    records.add(createSourceRecord(message));
+        for (Consumer<byte[]> consumer : bytesBasedConsumers) {
+            Messages<byte[]> messages = null;
+            try {
+                messages = consumer.batchReceive();
+                if (messages != null && messages.size() > 0) {
+                    for (Message<byte[]> message : messages) {
+                        SourceRecord record = createBytesBasedRecord(message);
+                        if (record != null) {
+                            records.add(record);
+                        }
+                    }
                 }
+                consumer.acknowledge(messages);
+            } catch (Exception ex) {
+                consumer.negativeAcknowledge(messages);
             }
-            consumer.acknowledge(messages);
-        } catch (PulsarClientException pce) {
-            consumer.negativeAcknowledge(messages);
-            if (log.isErrorEnabled()) {
-                log.error("Error while executing a poll(): ", pce);
+        }
+        for (Consumer<GenericRecord> consumer : structBasedConsumers) {
+            Messages<GenericRecord> messages = null;
+            try {
+                messages = consumer.batchReceive();
+                if (messages != null && messages.size() > 0) {
+                    for (Message<GenericRecord> message : messages) {
+                        SourceRecord record = createStructBasedRecord(message);
+                        if (record != null) {
+                            records.add(record);
+                        }
+                    }
+                }
+                consumer.acknowledge(messages);
+            } catch (Exception ex) {
+                consumer.negativeAcknowledge(messages);
             }
         }
         return records;
     }
 
-    private SourceRecord createSourceRecord(Message<byte[]> message) {
+    private SourceRecord createBytesBasedRecord(Message<byte[]> message) {
         String topic = getTopicName(message.getTopicName());
         String offset = message.getMessageId().toString();
-        byte[] recordKey = message.getKeyBytes();
-        byte[] recordValue = message.getData();
-        Map<String, String> sourcePartition =
-            Collections.singletonMap("topic", topic);
-        Map<String, String> sourceOffset =
-            Collections.singletonMap("offset", offset);
         return new SourceRecord(
-            sourcePartition, sourceOffset, topic,
-            null, recordKey, null, recordValue);
+            Collections.singletonMap(topic, topic),
+            Collections.singletonMap(offset, offset),
+            topic, Schema.BYTES_SCHEMA, message.getKeyBytes(),
+            Schema.BYTES_SCHEMA, message.getData());
+    }
+
+    private SourceRecord createStructBasedRecord(Message<GenericRecord> message) {
+        String topic = getTopicName(message.getTopicName());
+        String offset = message.getMessageId().toString();
+        byte[] schemaVersionBytes = message.getSchemaVersion();
+        String schemaVersionStr = SchemaUtils.getStringSchemaVersion(schemaVersionBytes);
+        long schemaVersion = Long.parseLong(schemaVersionStr);
+        String schemaKey = schemaKey(topic, schemaVersion);
+        Schema valueSchema = schemas.get(schemaKey);
+        if (valueSchema == null) {
+            SchemaInfo schemaInfo = null;
+            try {
+                schemaInfo = pulsarAdmin.schemas().getSchemaInfo(topic, schemaVersion);
+            } catch (PulsarAdminException pae) {
+                log.warn("A struct-based message was received for the "
+                    + "topic '%s' containing the specific schema version "
+                    + "%d but the schema could not be found. This should "
+                    + "not be possible!", topic, schemaVersion);
+                return null;
+            }
+            valueSchema = createConnectSchema(schemaInfo);
+            schemas.put(schemaKey, valueSchema);
+        }
+        GenericRecord record = message.getValue();
+        Struct value = buildStruct(record, valueSchema);
+        return new SourceRecord(
+            Collections.singletonMap(topic, topic),
+            Collections.singletonMap(offset, offset),
+            topic, Schema.BYTES_SCHEMA, message.getKeyBytes(),
+            value.schema(), value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Struct buildStruct(GenericRecord record, Schema schema) {
+        Struct struct = new Struct(schema);
+        List<org.apache.kafka.connect.data.Field> fields = schema.fields();
+        for (org.apache.kafka.connect.data.Field field : fields) {
+            Object fieldValue = record.getField(field.name());
+            if (fieldValue != null) {
+                if (fieldValue instanceof GenericRecord) {
+                    GenericRecord fieldRecord = (GenericRecord) fieldValue;
+                    if (field.schema().type().equals(Schema.Type.STRUCT)) {
+                        fieldValue = buildStruct(fieldRecord, field.schema());
+                    } else if (field.schema().type().equals(Schema.Type.MAP)) {
+                        fieldValue = GenericJsonRecordUtil.getMap(fieldRecord);
+                    } else if (field.schema().type().equals(Schema.Type.ARRAY)) {
+                        Schema valueSchema = field.schema().valueSchema();
+                        fieldValue = GenericJsonRecordUtil.getArray(fieldRecord, valueSchema);
+                    }
+                } else {
+                    String strValue = null;
+                    switch (field.schema().type()) {
+                        case INT64:
+                            strValue = fieldValue.toString();
+                            fieldValue = Long.parseLong(strValue);
+                            break;
+                        case FLOAT32:
+                            strValue = fieldValue.toString();
+                            fieldValue = Float.parseFloat(strValue);
+                            break;
+                        case BYTES:
+                            if (fieldValue instanceof String) {
+                                fieldValue = ((String) fieldValue).getBytes();
+                            }
+                            break;
+                        case ARRAY:
+                            if (fieldValue instanceof GenericData.Array) {
+                                // This is a Avro serialized array and thus
+                                // we need to obtain its content based on the
+                                // schema set for the value.
+                                Schema valueSchema = field.schema().valueSchema();
+                                switch (valueSchema.type()) {
+                                    case INT8: case INT16: case INT32:
+                                        GenericData.Array<Integer> intArray =
+                                            (GenericData.Array<Integer>) fieldValue;
+                                        List<Integer> intList = new ArrayList<>(intArray.size());
+                                        intList.addAll(intArray);
+                                        fieldValue = intList;
+                                        break;
+                                    case INT64:
+                                        GenericData.Array<Long> longArray =
+                                            (GenericData.Array<Long>) fieldValue;
+                                        List<Long> longList = new ArrayList<>(longArray.size());
+                                        longList.addAll(longArray);
+                                        fieldValue = longList;
+                                        break;
+                                    case FLOAT32: case FLOAT64:
+                                        GenericData.Array<Double> doubleArray =
+                                            (GenericData.Array<Double>) fieldValue;
+                                        List<Double> doubleList = new ArrayList<>(doubleArray.size());
+                                        doubleList.addAll(doubleArray);
+                                        fieldValue = doubleList;
+                                        break;
+                                    case BOOLEAN:
+                                        GenericData.Array<Boolean> boolArray =
+                                            (GenericData.Array<Boolean>) fieldValue;
+                                        List<Boolean> boolList = new ArrayList<>(boolArray.size());
+                                        boolList.addAll(boolArray);
+                                        fieldValue = boolList;
+                                        break;
+                                    case STRING: default:
+                                        GenericData.Array<Object> strArray =
+                                            (GenericData.Array<Object>) fieldValue;
+                                        List<String> strList = new ArrayList<>(strArray.size());
+                                        // Deep copy the content of the array to avoid any
+                                        // issues with strings that are specific to Avro.
+                                        for (Object value : strArray) {
+                                            strList.add(value.toString());
+                                        }
+                                        fieldValue = strList;
+                                        break;
+                                }
+                            }
+                            break;
+                        case MAP:
+                            if (fieldValue instanceof Map) {
+                                Map<Object, Object> original = (Map<Object, Object>) fieldValue;
+                                Schema keySchema = field.schema().keySchema();
+                                Schema valueSchema = field.schema().valueSchema();
+                                Map<Object, Object> newMap = new HashMap<>(original.size());
+                                Set<Object> keySet = original.keySet();
+                                for (Object key : keySet) {
+                                    Object value = original.get(key);
+                                    if (keySchema.type().equals(Schema.Type.STRING)) {
+                                        key = key.toString();
+                                    }
+                                    if (valueSchema.type().equals(Schema.Type.STRING)) {
+                                        value = value.toString();
+                                    }
+                                    newMap.put(key, value);
+                                }
+                                fieldValue = newMap;
+                            }
+                            break;
+                        case STRING:
+                            if (fieldValue instanceof GenericData.EnumSymbol) {
+                                fieldValue = fieldValue.toString();
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                try {
+                    struct.put(field.name(), fieldValue);
+                } catch (Exception ex) {
+                    log.warn("Error while setting field value: ", ex);
+                }
+            }
+        }
+        return struct;
     }
 
     private String getTopicName(String topicName) {
@@ -204,14 +497,161 @@ public class PulsarSourceTask extends SourceTask {
         return topicName;
     }
 
+    private Schema createConnectSchema(SchemaInfo schemaInfo) {
+        return buildSchema(schemaInfo.getSchemaDefinition());
+    }
+
+    private Schema buildSchema(String schemaDefinition) {
+        SchemaBuilder schemaBuilder = SchemaBuilder.struct();
+        org.apache.avro.Schema parsedSchema = new Parser().parse(schemaDefinition);
+        schemaBuilder.name(parsedSchema.getName());
+        List<Field> schemaFields = parsedSchema.getFields();
+        for (Field field : schemaFields) {
+            if (field.schema().getType().equals(Type.UNION)) {
+                List<org.apache.avro.Schema> types = field.schema().getTypes();
+                for (org.apache.avro.Schema typeOption : types) {
+                    Type type = typeOption.getType();
+                    if (!type.equals(Type.NULL)) {
+                        if (type.equals(Type.RECORD)) {
+                            String fieldSchemaDef = typeOption.toString();
+                            Schema fieldSchema = buildSchema(fieldSchemaDef);
+                            if (field.hasDefaultValue()) {
+                                schemaBuilder.field(field.name(), fieldSchema)
+                                    .optional().defaultValue(null);
+                            } else {
+                                schemaBuilder.field(field.name(), fieldSchema);
+                            }
+                        } else if (type.equals(Type.ARRAY)) {
+                            org.apache.avro.Schema itemType = typeOption.getElementType();
+                            if (itemType.getType().equals(org.apache.avro.Schema.Type.RECORD)) {
+                                // Maps in Avro are defined as arrays of records therefore
+                                // we need to capture its details here in the arrays section
+                                org.apache.avro.Schema kType = itemType.getField(key).schema();
+                                Schema keySchema = typeMapping.get(kType.getType());
+                                org.apache.avro.Schema vType = itemType.getField(value).schema();
+                                Schema valueSchema = typeMapping.get(vType.getType());
+                                if (field.hasDefaultValue()) {
+                                    schemaBuilder.field(field.name(), SchemaBuilder.map(
+                                        keySchema, valueSchema)
+                                            .optional()
+                                            .defaultValue(null)
+                                            .build());
+                                } else {
+                                    schemaBuilder.field(field.name(), SchemaBuilder.map(
+                                        keySchema, valueSchema).build());
+                                }
+                            } else {
+                                Schema valueSchema = typeMapping.get(itemType.getType());
+                                if (field.hasDefaultValue()) {
+                                    schemaBuilder.field(field.name(), SchemaBuilder.array(
+                                        valueSchema)
+                                            .optional()
+                                            .defaultValue(null)
+                                            .build());
+                                } else {
+                                    schemaBuilder.field(field.name(), SchemaBuilder.array(
+                                        valueSchema).build());
+                                }
+                            }
+                        } else if (type.equals(Type.MAP)) {
+                            org.apache.avro.Schema valueType = typeOption.getValueType();
+                            Schema valueSchema = typeMapping.get(valueType.getType());
+                            if (field.hasDefaultValue()) {
+                                schemaBuilder.field(field.name(), SchemaBuilder.map(
+                                    Schema.STRING_SCHEMA, valueSchema)
+                                        .optional()
+                                        .defaultValue(null)
+                                        .build());
+                            } else {
+                                schemaBuilder.field(field.name(), SchemaBuilder.map(
+                                    Schema.STRING_SCHEMA, valueSchema).build());
+                            }
+                        } else {
+                            Schema fieldSchema = typeMapping.get(type);
+                            if (field.hasDefaultValue()) {
+                                Object value = defaultValues.get(fieldSchema);
+                                schemaBuilder.field(field.name(), fieldSchema)
+                                    .optional().defaultValue(value);
+                            } else {
+                                schemaBuilder.field(field.name(), fieldSchema);
+                            }
+                        }
+                        break;
+                    }
+                }
+            } else {
+                Type type = field.schema().getType();
+                Schema fieldSchema = typeMapping.get(type);
+                if (field.hasDefaultValue()) {
+                    Object value = defaultValues.get(fieldSchema);
+                    schemaBuilder.field(field.name(), fieldSchema)
+                        .optional().defaultValue(value);
+                } else {
+                    schemaBuilder.field(field.name(), fieldSchema);
+                }
+            }
+        }
+        return schemaBuilder.build();
+    }
+
     @Override
     public void stop() {
-        if (consumer != null) {
-            consumer.closeAsync();
+        if (pulsarAdmin != null) {
+            pulsarAdmin.close();
         }
-        if (client != null) {
-            client.closeAsync();
+        for (Consumer<byte[]> consumer : bytesBasedConsumers) {
+            consumer.closeAsync().exceptionally((ex) -> {
+                if (log.isErrorEnabled()) {
+                    log.error("Error while closing a consumer", ex);
+                }
+                return null;
+            });
         }
+        for (Consumer<GenericRecord> consumer : structBasedConsumers) {
+            consumer.closeAsync().exceptionally((ex) -> {
+                if (log.isErrorEnabled()) {
+                    log.error("Error while closing a consumer", ex);
+                }
+                return null;
+            });
+        }
+        if (pulsarClient != null) {
+            pulsarClient.closeAsync().exceptionally((ex) -> {
+                if (log.isErrorEnabled()) {
+                    log.error("Error while closing a client", ex);
+                }
+                return null;
+            });
+        }
+    }
+
+    private static String topic = "topic";
+    private static String offset = "offset";
+    private static String key = "key";
+    private static String value = "value";
+
+    private static Map<org.apache.avro.Schema.Type, Schema> typeMapping = new HashMap<>();
+    private static Map<Schema, Object> defaultValues = new HashMap<>();
+
+    static {
+
+        typeMapping.put(org.apache.avro.Schema.Type.STRING, Schema.STRING_SCHEMA);
+        typeMapping.put(org.apache.avro.Schema.Type.BOOLEAN, Schema.BOOLEAN_SCHEMA);
+        typeMapping.put(org.apache.avro.Schema.Type.BYTES, Schema.BYTES_SCHEMA);
+        typeMapping.put(org.apache.avro.Schema.Type.INT, Schema.INT32_SCHEMA);
+        typeMapping.put(org.apache.avro.Schema.Type.LONG, Schema.INT64_SCHEMA);
+        typeMapping.put(org.apache.avro.Schema.Type.FLOAT, Schema.FLOAT32_SCHEMA);
+        typeMapping.put(org.apache.avro.Schema.Type.DOUBLE, Schema.FLOAT64_SCHEMA);
+        typeMapping.put(org.apache.avro.Schema.Type.ENUM, Schema.STRING_SCHEMA);
+
+        defaultValues.put(Schema.STRING_SCHEMA, null);
+        defaultValues.put(Schema.BOOLEAN_SCHEMA, false);
+        defaultValues.put(Schema.BYTES_SCHEMA, null);
+        defaultValues.put(Schema.INT32_SCHEMA, 0);
+        defaultValues.put(Schema.INT64_SCHEMA, 0L);
+        defaultValues.put(Schema.FLOAT32_SCHEMA, 0.0F);
+        defaultValues.put(Schema.FLOAT64_SCHEMA, 0.0D);
+
     }
 
 }

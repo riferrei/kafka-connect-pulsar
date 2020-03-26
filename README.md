@@ -95,6 +95,7 @@ They can complement each other, though.
 | topic.regex | Regex of allowed topics to read from | Yes | N/A | N/A |
 | topic.poll.interval.ms | How often to poll Pulsar for topics matching topic.regex | No | 300000 | N/A |
 | topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
+| struct.enabled | If enabled, messages serialized with JSON or Avro will be mapped to structs | No | false | N/A |
 | subscription.name | The name of the consumer subscription | No | A random UUID if not specified | N/A |
 | batch.max.num.messages | Maximum number of messages per batch | No | 10 | N/A |
 | batch.max.num.bytes | Maximum number of bytes per batch | No | 1024 | N/A |

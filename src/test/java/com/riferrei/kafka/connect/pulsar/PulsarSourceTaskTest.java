@@ -21,11 +21,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.data.Schema.Type;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.junit.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
 
@@ -41,7 +45,7 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
     public void shouldReadEarlierMessages() {
         final int numMsgs = 5;
         assertDoesNotThrow(() -> {
-            produceMessages(TOPIC[0], numMsgs);
+            produceBytesBasedMessages(topic, numMsgs);
         });
         Map<String, String> connectorProps = new HashMap<>();
         connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
@@ -49,7 +53,7 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
         connectorProps.put(SUBSCRIPTION_INITIAL_POSITION_CONFIG,
             SubscriptionInitialPosition.Earliest.name());
-        connectorProps.put(TOPIC_WHITELIST_CONFIG, TOPIC[0]);
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
@@ -72,13 +76,13 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
         connectorProps.put(SUBSCRIPTION_INITIAL_POSITION_CONFIG,
             SubscriptionInitialPosition.Latest.name());
-        connectorProps.put(TOPIC_WHITELIST_CONFIG, TOPIC[0]);
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
             try {
                 task.start(taskProps);
-                produceMessages(TOPIC[0], numMsgs);
+                produceBytesBasedMessages(topic, numMsgs);
                 List<SourceRecord> records = task.poll();
                 assertEquals(numMsgs, records.size());
             } finally {
@@ -94,15 +98,15 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(TOPIC_NAMING_STRATEGY_CONFIG,
             TopicNamingStrategyOptions.NameOnly.name());
-        connectorProps.put(TOPIC_WHITELIST_CONFIG, TOPIC[0]);
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
             try {
                 task.start(taskProps);
-                produceMessages(TOPIC[0], 1);
+                produceBytesBasedMessages(topic, 1);
                 List<SourceRecord> records = task.poll();
-                assertEquals(TOPIC[0], records.get(0).topic());
+                assertEquals(topic, records.get(0).topic());
             } finally {
                 task.stop();
             }
@@ -116,15 +120,16 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(TOPIC_NAMING_STRATEGY_CONFIG,
             TopicNamingStrategyOptions.FullyQualified.name());
-        connectorProps.put(TOPIC_WHITELIST_CONFIG, TOPIC[0]);
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
             try {
                 task.start(taskProps);
-                produceMessages(TOPIC[0], 1);
+                produceBytesBasedMessages(topic, 1);
                 List<SourceRecord> records = task.poll();
-                assertEquals(fullyQualifiedTopic(TOPIC[0]), records.get(0).topic());
+                assertEquals(fullyQualifiedTopic(topic),
+                    records.get(0).topic());
             } finally {
                 task.stop();
             }
@@ -139,15 +144,16 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgsTotal));
-        connectorProps.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, listToString(REUSABLE_TOPICS[0],
+            REUSABLE_TOPICS[1], REUSABLE_TOPICS[2]));
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
             try {
                 task.start(taskProps);
-                produceMessages(TOPIC[0], numMsgsPerTopic);
-                produceMessages(TOPIC[1], numMsgsPerTopic);
-                produceMessages(TOPIC[2], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[0], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[1], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[2], numMsgsPerTopic);
                 List<SourceRecord> records = task.poll();
                 assertEquals(numMsgsTotal, records.size());
             } finally {
@@ -161,22 +167,23 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         final int numMsgsPerTopic = 5;
         final int numMsgsTotal = 15;
         assertDoesNotThrow(() -> {
-            produceMessages(TOPIC[0], numMsgsPerTopic);
-            produceMessages(TOPIC[1], numMsgsPerTopic);
-            produceMessages(TOPIC[2], numMsgsPerTopic);
+            createNonPartitionedTopic(REUSABLE_TOPICS[0]);
+            createNonPartitionedTopic(REUSABLE_TOPICS[1]);
+            createNonPartitionedTopic(REUSABLE_TOPICS[2]);
         });
         Map<String, String> connectorProps = new HashMap<>();
         connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgsTotal));
-        connectorProps.put(SUBSCRIPTION_INITIAL_POSITION_CONFIG,
-            SubscriptionInitialPosition.Earliest.name());
         connectorProps.put(TOPIC_REGEX_CONFIG, TOPIC_REGEX_VALUE);
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
             try {
                 task.start(taskProps);
+                produceBytesBasedMessages(REUSABLE_TOPICS[0], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[1], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[2], numMsgsPerTopic);
                 List<SourceRecord> records = task.poll();
                 assertEquals(numMsgsTotal, records.size());
             } finally {
@@ -188,28 +195,33 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
     @Test
     public void checkMultipleTopicsUsingWhitelistAndRegex() {
         final int numMsgsPerTopic = 5;
-        final int numMsgsTotal = 25;
+        final int numMsgsTotal = 30;
         assertDoesNotThrow(() -> {
-            produceMessages(TOPIC[0], numMsgsPerTopic);
-            produceMessages(TOPIC[1], numMsgsPerTopic);
-            produceMessages(TOPIC[2], numMsgsPerTopic);
-            produceMessages(TOPIC[3], numMsgsPerTopic);
-            produceMessages(TOPIC[4], numMsgsPerTopic);
-            produceMessages(TOPIC[5], numMsgsPerTopic);
+            createNonPartitionedTopic(REUSABLE_TOPICS[0]);
+            createNonPartitionedTopic(REUSABLE_TOPICS[1]);
+            createNonPartitionedTopic(REUSABLE_TOPICS[2]);
+            createNonPartitionedTopic(REUSABLE_TOPICS[3]);
+            createNonPartitionedTopic(REUSABLE_TOPICS[4]);
+            createNonPartitionedTopic(REUSABLE_TOPICS[5]);
         });
         Map<String, String> connectorProps = new HashMap<>();
         connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgsTotal));
-        connectorProps.put(SUBSCRIPTION_INITIAL_POSITION_CONFIG,
-            SubscriptionInitialPosition.Earliest.name());
-        connectorProps.put(TOPIC_WHITELIST_CONFIG, listToString(TOPIC[0], TOPIC[1], TOPIC[2]));
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, listToString(REUSABLE_TOPICS[0],
+            REUSABLE_TOPICS[1], REUSABLE_TOPICS[2]));
         connectorProps.put(TOPIC_REGEX_CONFIG, TOPIC_REGEX_VALUE);
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
             try {
                 task.start(taskProps);
+                produceBytesBasedMessages(REUSABLE_TOPICS[0], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[1], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[2], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[3], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[4], numMsgsPerTopic);
+                produceBytesBasedMessages(REUSABLE_TOPICS[5], numMsgsPerTopic);
                 List<SourceRecord> records = task.poll();
                 assertEquals(numMsgsTotal, records.size());
             } finally {
@@ -220,7 +232,6 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
 
     @Test
     public void partitionedTopicShouldCreateOneTopic() {
-        final String topic = "customPartitionedTopic";
         final int partitions = 4;
         final int numMsgs = 4;
         assertDoesNotThrow(() -> {
@@ -236,12 +247,102 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         assertDoesNotThrow(() -> {
             try {
                 task.start(taskProps);
-                produceMessages(topic, numMsgs);
+                produceBytesBasedMessages(topic, numMsgs);
                 List<SourceRecord> records = task.poll();
                 assertEquals(numMsgs, records.size());
                 for (SourceRecord record : records) {
                     assertEquals(topic, record.topic());
                 }
+            } finally {
+                task.stop();
+            }
+        });
+    }
+
+    @Test
+    public void checkShouldCreateStructFromJSON() {
+        final int numMsgs = 1;
+        assertDoesNotThrow(() -> {
+            produceJSONBasedMessages(topic, numMsgs);
+        });
+        Map<String, String> connectorProps = new HashMap<>();
+        connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
+        connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
+        connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
+        connectorProps.put(STRUCT_ENABLED_CONFIG, String.valueOf(true));
+        Map<String, String> taskProps = getTaskProps(connectorProps);
+        PulsarSourceTask task = new PulsarSourceTask();
+        assertDoesNotThrow(() -> {
+            try {
+                task.start(taskProps);
+                produceJSONBasedMessages(topic, numMsgs);
+                List<SourceRecord> records = task.poll();
+                assertEquals(numMsgs, records.size());
+                SourceRecord record = records.get(0);
+                Schema schema = record.valueSchema();
+                assertEquals(schema.type(), Type.STRUCT);
+                assertTrue(record.value() instanceof Struct);
+            } finally {
+                task.stop();
+            }
+        });
+    }
+
+    @Test
+    public void checkShouldCreateStructFromAvro() {
+        final int numMsgs = 1;
+        assertDoesNotThrow(() -> {
+            produceAvroBasedMessages(topic, numMsgs);
+        });
+        Map<String, String> connectorProps = new HashMap<>();
+        connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
+        connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
+        connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
+        connectorProps.put(STRUCT_ENABLED_CONFIG, String.valueOf(true));
+        Map<String, String> taskProps = getTaskProps(connectorProps);
+        PulsarSourceTask task = new PulsarSourceTask();
+        assertDoesNotThrow(() -> {
+            try {
+                task.start(taskProps);
+                produceAvroBasedMessages(topic, numMsgs);
+                List<SourceRecord> records = task.poll();
+                assertEquals(numMsgs, records.size());
+                SourceRecord record = records.get(0);
+                Schema schema = record.valueSchema();
+                assertEquals(schema.type(), Type.STRUCT);
+                assertTrue(record.value() instanceof Struct);
+            } finally {
+                task.stop();
+            }
+        });
+    }
+
+    @Test
+    public void checkShouldCreateStructFromAvroGen() {
+        final int numMsgs = 1;
+        assertDoesNotThrow(() -> {
+            produceAvroGenBasedMessages(topic, numMsgs);
+        });
+        Map<String, String> connectorProps = new HashMap<>();
+        connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
+        connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
+        connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
+        connectorProps.put(STRUCT_ENABLED_CONFIG, String.valueOf(true));
+        Map<String, String> taskProps = getTaskProps(connectorProps);
+        PulsarSourceTask task = new PulsarSourceTask();
+        assertDoesNotThrow(() -> {
+            try {
+                task.start(taskProps);
+                produceAvroGenBasedMessages(topic, numMsgs);
+                List<SourceRecord> records = task.poll();
+                assertEquals(numMsgs, records.size());
+                SourceRecord record = records.get(0);
+                Schema schema = record.valueSchema();
+                assertEquals(schema.type(), Type.STRUCT);
+                assertTrue(record.value() instanceof Struct);
             } finally {
                 task.stop();
             }
