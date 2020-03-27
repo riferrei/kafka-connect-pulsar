@@ -14,7 +14,7 @@ The first thing you need to do to start using this connector is building it. In 
 After installing these dependencies, execute the following command:
 
 ```bash
-mvn clean install
+mvn clean package
 ```
 
 Keep in mind that this command also force the tests to be executed. Some of the tests rely on the [TestContainers](https://www.testcontainers.org/) framework and therefore -- you will need to have a functional Docker installation in your machine.

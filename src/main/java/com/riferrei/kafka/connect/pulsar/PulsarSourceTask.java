@@ -54,7 +54,6 @@ import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecordUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.shade.org.apache.avro.generic.GenericData;
 
 import static com.riferrei.kafka.connect.pulsar.PulsarSourceConnectorConfig.*;
@@ -143,33 +142,35 @@ public class PulsarSourceTask extends SourceTask {
                 }
                 if (schemaInfoWithVersion != null) {
                     SchemaInfo schemaInfo = schemaInfoWithVersion.getSchemaInfo();
-                    if (schemaInfo.getType().equals(SchemaType.JSON)
-                        || schemaInfo.getType().equals(SchemaType.AVRO)) {
-                        long schemaVersion = schemaInfoWithVersion.getVersion();
-                        String schemaKey = schemaKey(topic, schemaVersion);
-                        Schema schema = createConnectSchema(schemaInfo);
-                        schemas.put(schemaKey, schema);
-                        try {
-                            structBasedConsumers.add(createStructBasedConsumer(topic,
-                                batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
-                                deadLetterTopicEnabled, maxRedeliverCount));
-                        } catch (PulsarClientException pce) {
-                            if (log.isErrorEnabled()) {
-                                log.error("Error while creating a consumer for topic '%s': ", topic);
-                                log.error("Error: ", pce);
+                    switch (schemaInfo.getType()) {
+                        case JSON: case AVRO:
+                            long schemaVersion = schemaInfoWithVersion.getVersion();
+                            String schemaKey = schemaKey(topic, schemaVersion);
+                            Schema schema = createConnectSchema(schemaInfo);
+                            schemas.put(schemaKey, schema);
+                            try {
+                                structBasedConsumers.add(createStructBasedConsumer(topic,
+                                    batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                                    deadLetterTopicEnabled, maxRedeliverCount));
+                            } catch (PulsarClientException pce) {
+                                if (log.isErrorEnabled()) {
+                                    log.error("Error while creating a consumer for topic '%s': ", topic);
+                                    log.error("Error: ", pce);
+                                }
                             }
-                        }
-                    } else {
-                        try {
-                            bytesBasedConsumers.add(createBytesBasedConsumer(topic,
-                                batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
-                                deadLetterTopicEnabled, maxRedeliverCount));
-                        } catch (PulsarClientException pce) {
-                            if (log.isErrorEnabled()) {
-                                log.error("Error while creating a consumer for topic '%s': ", topic);
-                                log.error("Error: ", pce);
+                            break;
+                        default:
+                            try {
+                                bytesBasedConsumers.add(createBytesBasedConsumer(topic,
+                                    batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                                    deadLetterTopicEnabled, maxRedeliverCount));
+                            } catch (PulsarClientException pce) {
+                                if (log.isErrorEnabled()) {
+                                    log.error("Error while creating a consumer for topic '%s': ", topic);
+                                    log.error("Error: ", pce);
+                                }
                             }
-                        }
+                            break;
                     }
                 } else {
                     try {
@@ -579,6 +580,8 @@ public class PulsarSourceTask extends SourceTask {
     }
 
     private Schema buildSchema(String schemaDefinition) {
+        System.out.println(schemaDefinition);
+        System.out.println();
         SchemaBuilder schemaBuilder = SchemaBuilder.struct();
         org.apache.avro.Schema parsedSchema = new Parser().parse(schemaDefinition);
         schemaBuilder.name(parsedSchema.getName());
@@ -594,15 +597,13 @@ public class PulsarSourceTask extends SourceTask {
                             Schema fieldSchema = buildSchema(fieldSchemaDef);
                             if (field.hasDefaultValue()) {
                                 schemaBuilder.field(field.name(), fieldSchema)
-                                    .optional().defaultValue(null);
+                                    .optional().defaultValue(null).build();
                             } else {
                                 schemaBuilder.field(field.name(), fieldSchema);
                             }
                         } else if (type.equals(Type.ARRAY)) {
                             org.apache.avro.Schema itemType = typeOption.getElementType();
                             if (itemType.getType().equals(org.apache.avro.Schema.Type.RECORD)) {
-                                // Maps in Avro are defined as arrays of records therefore
-                                // we need to capture its details here in the arrays section
                                 org.apache.avro.Schema kType = itemType.getField(key).schema();
                                 Schema keySchema = typeMapping.get(kType.getType());
                                 org.apache.avro.Schema vType = itemType.getField(value).schema();
@@ -647,8 +648,9 @@ public class PulsarSourceTask extends SourceTask {
                             Schema fieldSchema = typeMapping.get(type);
                             if (field.hasDefaultValue()) {
                                 Object value = defaultValues.get(fieldSchema);
-                                schemaBuilder.field(field.name(), fieldSchema)
-                                    .optional().defaultValue(value);
+                                schemaBuilder.field(field.name(), SchemaBuilder.type(
+                                    fieldSchema.type()).optional().defaultValue(value)
+                                    .build());
                             } else {
                                 schemaBuilder.field(field.name(), fieldSchema);
                             }
@@ -656,13 +658,44 @@ public class PulsarSourceTask extends SourceTask {
                         break;
                     }
                 }
+            } else if (field.schema().getType().equals(Type.ARRAY)) {
+                org.apache.avro.Schema itemType = field.schema().getElementType();
+                if (itemType.getType().equals(org.apache.avro.Schema.Type.RECORD)) {
+                    org.apache.avro.Schema kType = itemType.getField(key).schema();
+                    Schema keySchema = typeMapping.get(kType.getType());
+                    org.apache.avro.Schema vType = itemType.getField(value).schema();
+                    Schema valueSchema = typeMapping.get(vType.getType());
+                    if (field.hasDefaultValue()) {
+                        schemaBuilder.field(field.name(), SchemaBuilder.map(
+                            keySchema, valueSchema)
+                                .optional()
+                                .defaultValue(null)
+                                .build());
+                    } else {
+                        schemaBuilder.field(field.name(), SchemaBuilder.map(
+                            keySchema, valueSchema).build());
+                    }
+                } else {
+                    Schema valueSchema = typeMapping.get(itemType.getType());
+                    if (field.hasDefaultValue()) {
+                        schemaBuilder.field(field.name(), SchemaBuilder.array(
+                            valueSchema)
+                                .optional()
+                                .defaultValue(null)
+                                .build());
+                    } else {
+                        schemaBuilder.field(field.name(), SchemaBuilder.array(
+                            valueSchema).build());
+                    }
+                }
             } else {
                 Type type = field.schema().getType();
                 Schema fieldSchema = typeMapping.get(type);
                 if (field.hasDefaultValue()) {
                     Object value = defaultValues.get(fieldSchema);
-                    schemaBuilder.field(field.name(), fieldSchema)
-                        .optional().defaultValue(value);
+                    schemaBuilder.field(field.name(), SchemaBuilder.type(
+                        fieldSchema.type()).optional().defaultValue(value)
+                        .build());
                 } else {
                     schemaBuilder.field(field.name(), fieldSchema);
                 }

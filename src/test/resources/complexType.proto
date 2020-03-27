@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package com.riferrei.kafka.connect.pulsar;
+
+option java_outer_classname = "ProtoBufGenComplexType";
+
+message ProtoBufComplexType {
+
+    string stringField = 1;
+    bool booleanField = 2;
+    bytes bytesField = 3;
+    int32 intField = 4;
+    int64 longField = 5;
+    float floatField = 6;
+    double doubleField = 7;
+    map<string, double> mapField = 8;
+    ProtoBufInnerType innerField = 9;
+
+    message ProtoBufInnerType {
+
+        double doubleField = 1;
+        repeated string arrayField = 2;
+        enum ProtoBufMultipleOptions {
+            FIRST_OPTION = 0;
+            SECOND_OPTION = 1;
+            THIRD_OPTION = 2;
+            FOURTH_OPTION = 3;
+        }
+        ProtoBufMultipleOptions enumField = 3;
+
+    }
+
+}
+
+message ProtoBufComplexTypes {
+    repeated ProtoBufComplexType complexType = 1;
+}

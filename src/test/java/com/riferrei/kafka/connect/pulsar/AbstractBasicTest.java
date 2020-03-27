@@ -38,6 +38,11 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 
+import com.google.protobuf.ByteString;
+import com.riferrei.kafka.connect.pulsar.ProtoBufGenComplexType.ProtoBufComplexType;
+import com.riferrei.kafka.connect.pulsar.ProtoBufGenComplexType.ProtoBufComplexType.ProtoBufInnerType;
+import com.riferrei.kafka.connect.pulsar.ProtoBufGenComplexType.ProtoBufComplexType.ProtoBufInnerType.ProtoBufMultipleOptions;
+
 public abstract class AbstractBasicTest {
 
     @ClassRule
@@ -189,6 +194,24 @@ public abstract class AbstractBasicTest {
         }
     }
 
+    protected void produceProtoBufBasedMessages(String topic, int numMessages)
+        throws PulsarClientException {
+        Producer<ProtoBufComplexType> producer = null;
+        try {
+            producer = pulsarClient.newProducer(
+                Schema.PROTOBUF(ProtoBufComplexType.class))
+                    .topic(topic)
+                    .create();
+            for (int i = 0; i < numMessages; i++) {
+                producer.send(createProtoBufGenComplexType());
+            }
+        } finally {
+            if (producer != null) {
+                producer.closeAsync();
+            }
+        }
+    }
+
     protected JSONComplexType createJSONComplexType() {
 
         JSONComplexType complexType = new JSONComplexType();
@@ -285,6 +308,33 @@ public abstract class AbstractBasicTest {
             .setDoubleField(RANDOM.nextDouble())
             .setArrayField(Arrays.asList(String.valueOf(RANDOM.nextInt())))
             .setEnumField(AvroGenMultipleOptions.ThirdOption));
+
+        return complexType.build();
+
+    }
+
+    protected ProtoBufComplexType createProtoBufGenComplexType() {
+
+        ProtoBufComplexType.Builder complexType = ProtoBufComplexType.newBuilder();
+        complexType.setStringField(String.valueOf(RANDOM.nextInt()));
+        complexType.setBooleanField(RANDOM.nextBoolean());
+        byte[] bytes = new byte[1024];
+        RANDOM.nextBytes(bytes);
+        complexType.setBytesField(ByteString.copyFrom(bytes));
+        complexType.setIntField(RANDOM.nextInt());
+        complexType.setLongField(RANDOM.nextLong());
+        complexType.setFloatField(RANDOM.nextFloat());
+        complexType.setDoubleField(RANDOM.nextDouble());
+
+        complexType.putMapField(
+            String.valueOf(RANDOM.nextInt()),
+            RANDOM.nextDouble());
+
+        complexType.setInnerField(ProtoBufInnerType.newBuilder()
+            .setDoubleField(RANDOM.nextDouble())
+            .addArrayField(String.valueOf(RANDOM.nextInt()))
+            .setEnumField(ProtoBufMultipleOptions.THIRD_OPTION)
+            .build());
 
         return complexType.build();
 

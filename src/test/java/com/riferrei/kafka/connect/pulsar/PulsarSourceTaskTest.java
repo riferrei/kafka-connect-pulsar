@@ -349,6 +349,36 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         });
     }
 
+    @Test
+    public void checkShouldCreateStructFromProtoBufGen() {
+        final int numMsgs = 1;
+        assertDoesNotThrow(() -> {
+            produceProtoBufBasedMessages(topic, numMsgs);
+        });
+        Map<String, String> connectorProps = new HashMap<>();
+        connectorProps.put(SERVICE_URL_CONFIG, getServiceUrl());
+        connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
+        connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
+        connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
+        connectorProps.put(SCHEMA_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
+        Map<String, String> taskProps = getTaskProps(connectorProps);
+        PulsarSourceTask task = new PulsarSourceTask();
+        assertDoesNotThrow(() -> {
+            try {
+                task.start(taskProps);
+                produceProtoBufBasedMessages(topic, numMsgs);
+                List<SourceRecord> records = task.poll();
+                assertEquals(numMsgs, records.size());
+                SourceRecord record = records.get(0);
+                Schema schema = record.valueSchema();
+                assertEquals(schema.type(), Type.BYTES);
+                assertTrue(record.value() instanceof byte[]);
+            } finally {
+                task.stop();
+            }
+        });
+    }
+
     private Map<String, String> getTaskProps(Map<String, String> connectorProps) {
         PulsarSourceConnector connector = new PulsarSourceConnector();
         connector.start(connectorProps);

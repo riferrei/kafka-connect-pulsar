@@ -64,6 +64,7 @@
         <junit.jupiter.version>5.6.0</junit.jupiter.version>
         <pulsar.client.version>2.5.0</pulsar.client.version>
         <apache.avro.version>1.9.2</apache.avro.version>
+        <protobuf.java.version>3.11.4</protobuf.java.version>
         <testcontainers.version>1.13.0</testcontainers.version>
     </properties>
 
@@ -88,6 +89,11 @@
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
             <version>${apache.avro.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.java.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -152,6 +158,31 @@
                         <configuration>
                             <testSourceDirectory>src/test/resources/</testSourceDirectory>
                             <testOutputDirectory>src/test/java/</testOutputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.os72</groupId>
+                <artifactId>protoc-jar-maven-plugin</artifactId>
+                <version>3.7.1</version>
+                <executions>
+                    <execution>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <inputDirectories>
+                                <include>src/test/resources/</include>
+                            </inputDirectories>
+                            <outputTargets>
+                                <outputTarget>
+                                    <type>java</type>
+                                    <addSources>none</addSources>
+                                    <outputDirectory>src/test/java/</outputDirectory>
+                                </outputTarget>
+                            </outputTargets>
                         </configuration>
                     </execution>
                 </executions>
