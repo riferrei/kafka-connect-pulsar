@@ -34,6 +34,7 @@ import org.apache.avro.Schema.Type;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.data.Values;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -292,34 +293,42 @@ public class PulsarSourceTask extends SourceTask {
             Messages<byte[]> messages = null;
             try {
                 messages = consumer.batchReceive();
-                if (messages != null && messages.size() > 0) {
-                    for (Message<byte[]> message : messages) {
+            } catch (Exception ex) {
+                log.warn("Error while polling for messages", ex);
+            }
+            if (messages != null && messages.size() > 0) {
+                for (Message<byte[]> message : messages) {
+                    try {
                         SourceRecord record = createBytesBasedRecord(message);
                         if (record != null) {
                             records.add(record);
                         }
+                        consumer.acknowledge(message);
+                    } catch (Exception ex) {
+                        consumer.negativeAcknowledge(message);
                     }
                 }
-                consumer.acknowledge(messages);
-            } catch (Exception ex) {
-                consumer.negativeAcknowledge(messages);
             }
         }
         for (Consumer<GenericRecord> consumer : structBasedConsumers) {
             Messages<GenericRecord> messages = null;
             try {
                 messages = consumer.batchReceive();
-                if (messages != null && messages.size() > 0) {
-                    for (Message<GenericRecord> message : messages) {
+            } catch (Exception ex) {
+                log.warn("Error while polling for messages", ex);
+            }
+            if (messages != null && messages.size() > 0) {
+                for (Message<GenericRecord> message : messages) {
+                    try {
                         SourceRecord record = createStructBasedRecord(message);
                         if (record != null) {
                             records.add(record);
                         }
+                        consumer.acknowledge(message);
+                    } catch (Exception ex) {
+                        consumer.negativeAcknowledge(message);
                     }
                 }
-                consumer.acknowledge(messages);
-            } catch (Exception ex) {
-                consumer.negativeAcknowledge(messages);
             }
         }
         return records;
@@ -384,16 +393,7 @@ public class PulsarSourceTask extends SourceTask {
                         fieldValue = GenericJsonRecordUtil.getArray(fieldRecord, valueSchema);
                     }
                 } else {
-                    String strValue = null;
                     switch (field.schema().type()) {
-                        case INT64:
-                            strValue = fieldValue.toString();
-                            fieldValue = Long.parseLong(strValue);
-                            break;
-                        case FLOAT32:
-                            strValue = fieldValue.toString();
-                            fieldValue = Float.parseFloat(strValue);
-                            break;
                         case BYTES:
                             if (fieldValue instanceof String) {
                                 fieldValue = ((String) fieldValue).getBytes();
@@ -406,7 +406,21 @@ public class PulsarSourceTask extends SourceTask {
                                 // schema set for the value.
                                 Schema valueSchema = field.schema().valueSchema();
                                 switch (valueSchema.type()) {
-                                    case INT8: case INT16: case INT32:
+                                    case INT8:
+                                        GenericData.Array<Byte> byteArray =
+                                            (GenericData.Array<Byte>) fieldValue;
+                                        List<Byte> byteList = new ArrayList<>(byteArray.size());
+                                        byteList.addAll(byteArray);
+                                        fieldValue = byteList;
+                                        break;
+                                    case INT16:
+                                        GenericData.Array<Short> shortArray =
+                                            (GenericData.Array<Short>) fieldValue;
+                                        List<Short> shortList = new ArrayList<>(shortArray.size());
+                                        shortList.addAll(shortArray);
+                                        fieldValue = shortList;
+                                        break;
+                                    case INT32:
                                         GenericData.Array<Integer> intArray =
                                             (GenericData.Array<Integer>) fieldValue;
                                         List<Integer> intList = new ArrayList<>(intArray.size());
@@ -420,7 +434,14 @@ public class PulsarSourceTask extends SourceTask {
                                         longList.addAll(longArray);
                                         fieldValue = longList;
                                         break;
-                                    case FLOAT32: case FLOAT64:
+                                    case FLOAT32:
+                                        GenericData.Array<Float> floatArray =
+                                            (GenericData.Array<Float>) fieldValue;
+                                        List<Float> floatList = new ArrayList<>(floatArray.size());
+                                        floatList.addAll(floatArray);
+                                        fieldValue = floatList;
+                                        break;
+                                    case FLOAT64:
                                         GenericData.Array<Double> doubleArray =
                                             (GenericData.Array<Double>) fieldValue;
                                         List<Double> doubleList = new ArrayList<>(doubleArray.size());
@@ -450,19 +471,24 @@ public class PulsarSourceTask extends SourceTask {
                             break;
                         case MAP:
                             if (fieldValue instanceof Map) {
+                                Schema keyToSchema = field.schema().keySchema();
+                                Schema valueToSchema = field.schema().valueSchema();
                                 Map<Object, Object> original = (Map<Object, Object>) fieldValue;
-                                Schema keySchema = field.schema().keySchema();
-                                Schema valueSchema = field.schema().valueSchema();
                                 Map<Object, Object> newMap = new HashMap<>(original.size());
                                 Set<Object> keySet = original.keySet();
                                 for (Object key : keySet) {
                                     Object value = original.get(key);
-                                    if (keySchema.type().equals(Schema.Type.STRING)) {
+                                    Schema keyFromSchema = Values.inferSchema(key);
+                                    if (keyFromSchema == null) {
+                                        // Unlike to happen but Avro may have
+                                        // some data type wrappers that would
+                                        // make this detection a bit hard.
+                                        keyFromSchema = Schema.STRING_SCHEMA;
                                         key = key.toString();
                                     }
-                                    if (valueSchema.type().equals(Schema.Type.STRING)) {
-                                        value = value.toString();
-                                    }
+                                    Schema valueFromSchema = Values.inferSchema(value);
+                                    key = convert(keyFromSchema, keyToSchema, key);
+                                    value = convert(valueFromSchema, valueToSchema, value);
                                     newMap.put(key, value);
                                 }
                                 fieldValue = newMap;
@@ -471,20 +497,51 @@ public class PulsarSourceTask extends SourceTask {
                         case STRING:
                             if (fieldValue instanceof GenericData.EnumSymbol) {
                                 fieldValue = fieldValue.toString();
+                            } else {
+                                fieldValue = Values.convertToString(field.schema(), fieldValue);
                             }
                             break;
                         default:
+                            fieldValue = convert(null, field.schema(), fieldValue);
                             break;
                     }
                 }
-                try {
-                    struct.put(field.name(), fieldValue);
-                } catch (Exception ex) {
-                    log.warn("Error while setting field value: ", ex);
-                }
+                struct.put(field.name(), fieldValue);
             }
         }
         return struct;
+    }
+
+    private Object convert(Schema fromSchema, Schema toSchema, Object value) {
+        switch (toSchema.type()) {
+            case INT8:
+                value = Values.convertToByte(fromSchema, value);
+                break;
+            case INT16:
+                value = Values.convertToShort(fromSchema, value);
+                break;
+            case INT32:
+                value = Values.convertToInteger(fromSchema, value);
+                break;
+            case INT64:
+                value = Values.convertToLong(fromSchema, value);
+                break;
+            case FLOAT32:
+                value = Values.convertToFloat(fromSchema, value);
+                break;
+            case FLOAT64:
+                value = Values.convertToDouble(fromSchema, value);
+                break;
+            case BOOLEAN:
+                value = Values.convertToBoolean(fromSchema, value);
+                break;
+            case STRING:
+                value = Values.convertToString(fromSchema, value);
+                break;
+            default:
+                break;
+        }
+        return value;
     }
 
     private String getTopicName(String topicName) {
