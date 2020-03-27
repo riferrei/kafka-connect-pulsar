@@ -58,34 +58,34 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final String TOPIC_BLACKLIST_DEFAULT = null;
 
     public static final String DEAD_LETTER_TOPIC_ENABLED_CONFIG = "dead.letter.topic.enabled";
-    private static final String DEAD_LETTER_TOPIC_ENABLED_DOC = "If enabled, it configures a dead letter topic for each consumer";
+    private static final String DEAD_LETTER_TOPIC_ENABLED_DOC = "If enabled, it will send failed messages to a topic named 'connect-task-${topicName}-DLQ'";
     private static final boolean DEAD_LETTER_TOPIC_ENABLED_DEFAULT = false;
 
     public static final String DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_CONFIG = "dead.letter.topic.max.redeliver.count";
-    private static final String DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_DOC = "Number of redeliver attempts for failed messages";
+    private static final String DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_DOC = "Number of redeliver attempts before sending to the DLQ";
     private static final int DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_DEFAULT = 5;
 
     public static final String SCHEMA_DESERIALIZATION_ENABLED_CONFIG = "schema.deserialization.enabled";
-    private static final String SCHEMA_DESERIALIZATION_ENABLED_DOC = "If enabled, messages serialized with JSON or Avro will be mapped to structs";
+    private static final String SCHEMA_DESERIALIZATION_ENABLED_DOC = "If enabled, messages serialized with JSON or Avro will be transformed into struct-based records";
     private static final boolean SCHEMA_DESERIALIZATION_ENABLED_DEFAULT = false;
 
     public static final String BATCH_MAX_NUM_MESSAGES_CONFIG = "batch.max.num.messages";
-    private static final String BATCH_MAX_NUM_MESSAGES_DOC = "Maximum number of messages per batch";
+    private static final String BATCH_MAX_NUM_MESSAGES_DOC = "Maximum number of messages to wait for each batch";
     private static final int BATCH_MAX_NUM_MESSAGES_DEFAULT = -1;
 
     public static final String BATCH_MAX_NUM_BYTES_CONFIG = "batch.max.num.bytes";
-    private static final String BATCH_MAX_NUM_BYTES_DOC = "Maximum number of bytes per batch";
+    private static final String BATCH_MAX_NUM_BYTES_DOC = "Maximum number of bytes to wait for each batch";
     private static final int BATCH_MAX_NUM_BYTES_DEFAULT = 20480;
 
     public static final String BATCH_TIMEOUT_CONFIG = "batch.timeout";
-    private static final String BATCH_TIMEOUT_DOC = "Timeout criteria per batch";
+    private static final String BATCH_TIMEOUT_DOC = "Timeout criteria for each batch";
     private static final int BATCH_TIMEOUT_DEFAULT = 100;
 
     public enum TopicNamingStrategyOptions {
         NameOnly, FullyQualified
     };
     public static final String TOPIC_NAMING_STRATEGY_CONFIG = "topic.naming.strategy";
-    private static final String TOPIC_NAMING_STRATEGY_DOC = "Topic naming strategy for the Kafka topic";
+    private static final String TOPIC_NAMING_STRATEGY_DOC = "Dictates how the topic name from Pulsar to Kafka should be mapped";
     private static final String TOPIC_NAMING_STRATEGY_DEFAULT = TopicNamingStrategyOptions.NameOnly.name();
 
     // Client Options

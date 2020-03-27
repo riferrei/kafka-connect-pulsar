@@ -122,7 +122,7 @@ public class PulsarSourceTask extends SourceTask {
     }
 
     private String deadLetterTopic(String topic) {
-        return String.format("connect-task-%s-dlq", topic);
+        return String.format("connect-task-%s-DLQ", topic);
     }
 
     private void createConsumers(List<String> topics, int batchTimeout,

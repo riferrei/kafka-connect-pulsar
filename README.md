@@ -83,9 +83,9 @@ At this point you should have ten records stored in Kafka, which means that the 
 
 ## Configuration reference
 
-This connector is highly customizable, and the table below explains the different configurations available.
-The table says that the properties `topic.whitelist` and `topic.regex` are mandatory but at least one of them is in fact mandatory.
-They can complement each other, though.
+Table below contains all the configurations that are specific to the connector.
+Though the table says that the properties `topic.whitelist` and `topic.regex` are mandatory, only one of them is in fact mandatory.
+However, they can be used together to mix up a static and dynamic method about which topics should be read from.
 
 | Configuration | Description | Mandatory? | Default | Possible Values
 | ----------- | ----------- | ------------- | ------------- | ------------- |
@@ -93,15 +93,20 @@ They can complement each other, though.
 | service.http.url | URL for the Pulsar admin service | Yes | N/A | N/A |
 | topic.whitelist | List of allowed topics to read from | Yes | N/A | N/A |
 | topic.regex | Regex of allowed topics to read from | Yes | N/A | N/A |
-| topic.poll.interval.ms | How often to poll Pulsar for topics matching topic.regex | No | 300000 | N/A |
-| topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
-| dead.letter.topic.enabled | If enabled, it configures a dead letter topic for each consumer | No | false | N/A |
-| dead.letter.topic.max.redeliver.count | Number of redeliver attempts for failed messages | No | 5 | N/A |
-| schema.deserialization.enabled | If enabled, messages serialized with JSON or Avro will be mapped to structs | No | false | N/A |
-| batch.max.num.messages | Maximum number of messages per batch | No | 10 | N/A |
-| batch.max.num.bytes | Maximum number of bytes per batch | No | 1024 | N/A |
-| batch.timeout | Timeout criteria per batch | No | 1000 | N/A |
-| topic.naming.strategy | Topic naming strategy for the Kafka topic | No | NameOnly | [NameOnly, FullyQualified] |
+| topic.poll.interval.ms | How often to poll Pulsar for topics matching topic.regex | No | 300000 | N/A || topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
+| dead.letter.topic.enabled | If enabled, it will send failed messages to a topic named 'connect-task-${topicName}-DLQ' | No | false | N/A |
+| dead.letter.topic.max.redeliver.count | Number of redeliver attempts before sending to the DLQ | No | 5 | N/A |
+| schema.deserialization.enabled | If enabled, messages serialized with JSON or Avro will be transformed into struct-based records | No | false | N/A |
+| batch.max.num.messages | Maximum number of messages to wait for each batch | No | 10 | N/A |
+| batch.max.num.bytes | Maximum number of bytes to wait for each batch | No | 1024 | N/A |
+| batch.timeout | Timeout criteria for each batch | No | 1000 | N/A |
+| topic.naming.strategy | Dictates how the topic name from Pulsar to Kafka should be mapped | No | NameOnly | [NameOnly, FullyQualified] |
+
+Table below contains all the configurations that are specific to Pulsar, notably client and consumer configurations.
+This is not meant to be a complete list of configurations, and the ones shown below are the ones that make sense to have in the context of the connector.
+
+| Configuration | Description | Mandatory? | Default | Possible Values
+| ----------- | ----------- | ------------- | ------------- | ------------- |
 | auth.plugin.class.name | Name of the authentication plugin | No | N/A | N/A |
 | auth.params | String represents parameters for the authentication plugin | No | N/A | N/A |
 | operation.timeout.ms | Operation timeout | No | 30000 | N/A |
