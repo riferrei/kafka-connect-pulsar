@@ -27,7 +27,6 @@ import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
 
 public class PulsarSourceConnectorConfig extends AbstractConfig {
 
@@ -58,13 +57,17 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final String TOPIC_BLACKLIST_DOC = "List of topics to exclude from read";
     private static final String TOPIC_BLACKLIST_DEFAULT = null;
 
-    public static final String STRUCT_ENABLED_CONFIG = "struct.enabled";
-    private static final String STRUCT_ENABLED_DOC = "If enabled, messages serialized with JSON or Avro will be mapped to structs";
-    private static final boolean STRUCT_ENABLED_DEFAULT = false;
+    public static final String DEAD_LETTER_TOPIC_ENABLED_CONFIG = "dead.letter.topic.enabled";
+    private static final String DEAD_LETTER_TOPIC_ENABLED_DOC = "If enabled, it configures a dead letter topic for each consumer";
+    private static final boolean DEAD_LETTER_TOPIC_ENABLED_DEFAULT = false;
 
-    public static final String SUBSCRIPTION_NAME_CONFIG = "subscription.name";
-    private static final String SUBSCRIPTION_NAME_DOC = "The name of the consumer subscription";
-    private static final String SUBSCRIPTION_NAME_DEFAULT = null;
+    public static final String DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_CONFIG = "dead.letter.topic.max.redeliver.count";
+    private static final String DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_DOC = "Number of redeliver attempts for failed messages";
+    private static final int DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_DEFAULT = 5;
+
+    public static final String SCHEMA_DESERIALIZATION_ENABLED_CONFIG = "schema.deserialization.enabled";
+    private static final String SCHEMA_DESERIALIZATION_ENABLED_DOC = "If enabled, messages serialized with JSON or Avro will be mapped to structs";
+    private static final boolean SCHEMA_DESERIALIZATION_ENABLED_DEFAULT = false;
 
     public static final String BATCH_MAX_NUM_MESSAGES_CONFIG = "batch.max.num.messages";
     private static final String BATCH_MAX_NUM_MESSAGES_DOC = "Maximum number of messages per batch";
@@ -163,10 +166,6 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
     private static final long MAX_BACKOFF_INTERVAL_NANOS_DEFAULT = TimeUnit.MILLISECONDS.toNanos(30);
 
     // Consumer Options
-    public static final String SUBSCRIPTION_TYPE_CONFIG = "subscription.type";
-    private static final String SUBSCRIPTION_TYPE_DOC = "Subscription type";
-    private static final String SUBSCRIPTION_TYPE_DEFAULT = SubscriptionType.Exclusive.name();
-
     public static final String RECEIVER_QUEUE_SIZE_CONFIG = "receiver.queue.size";
     private static final String RECEIVER_QUEUE_SIZE_DOC = "Size of a consumer's receiver queue";
     private static final int RECEIVER_QUEUE_SIZE_DEFAULT = 1000;
@@ -271,17 +270,23 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
             Importance.HIGH,
             TOPIC_BLACKLIST_DOC)
         .define(
-            STRUCT_ENABLED_CONFIG,
+            DEAD_LETTER_TOPIC_ENABLED_CONFIG,
             Type.BOOLEAN,
-            STRUCT_ENABLED_DEFAULT,
+            DEAD_LETTER_TOPIC_ENABLED_DEFAULT,
             Importance.HIGH,
-            STRUCT_ENABLED_DOC)
+            DEAD_LETTER_TOPIC_ENABLED_DOC)
         .define(
-            SUBSCRIPTION_NAME_CONFIG,
-            Type.STRING,
-            SUBSCRIPTION_NAME_DEFAULT,
+            DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_CONFIG,
+            Type.INT,
+            DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_DEFAULT,
             Importance.HIGH,
-            SUBSCRIPTION_NAME_DOC)
+            DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_DOC)
+        .define(
+            SCHEMA_DESERIALIZATION_ENABLED_CONFIG,
+            Type.BOOLEAN,
+            SCHEMA_DESERIALIZATION_ENABLED_DEFAULT,
+            Importance.HIGH,
+            SCHEMA_DESERIALIZATION_ENABLED_DOC)
         .define(
             BATCH_MAX_NUM_MESSAGES_CONFIG,
             Type.INT,
@@ -429,12 +434,6 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     private static void addConsumerOptions(final ConfigDef configDef) {
         configDef.define(
-            SUBSCRIPTION_TYPE_CONFIG,
-            Type.STRING,
-            SUBSCRIPTION_TYPE_DEFAULT,
-            Importance.LOW,
-            SUBSCRIPTION_TYPE_DOC)
-        .define(
             RECEIVER_QUEUE_SIZE_CONFIG,
             Type.INT,
             RECEIVER_QUEUE_SIZE_DEFAULT,

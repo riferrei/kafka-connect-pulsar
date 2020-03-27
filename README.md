@@ -95,8 +95,9 @@ They can complement each other, though.
 | topic.regex | Regex of allowed topics to read from | Yes | N/A | N/A |
 | topic.poll.interval.ms | How often to poll Pulsar for topics matching topic.regex | No | 300000 | N/A |
 | topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
-| struct.enabled | If enabled, messages serialized with JSON or Avro will be mapped to structs | No | false | N/A |
-| subscription.name | The name of the consumer subscription | No | A random UUID if not specified | N/A |
+| dead.letter.topic.enabled | If enabled, it configures a dead letter topic for each consumer | No | false | N/A |
+| dead.letter.topic.max.redeliver.count | Number of redeliver attempts for failed messages | No | 5 | N/A |
+| schema.deserialization.enabled | If enabled, messages serialized with JSON or Avro will be mapped to structs | No | false | N/A |
 | batch.max.num.messages | Maximum number of messages per batch | No | 10 | N/A |
 | batch.max.num.bytes | Maximum number of bytes per batch | No | 1024 | N/A |
 | batch.timeout | Timeout criteria per batch | No | 1000 | N/A |
@@ -120,7 +121,6 @@ They can complement each other, though.
 | request.timeout.ms | Maximum duration for completing a request | No | 60000 | N/A |
 | initial.backoff.interval.nanos | Default duration for a backoff interval | No | 100 | N/A |
 | max.backoff.interval.nanos | Maximum duration for a backoff interval | No | 30 | N/A |
-| subscription.type | Subscription type | No | Exclusive | [Exclusive, Shared, Failover, Key_Shared] |
 | receiver.queue.size | Size of a consumer's receiver queue | No | 1000 | N/A |
 | acknowledgements.group.time.micros | Group a consumer acknowledgment for a specified time | No | 100 | N/A |
 | negative.ack.redelivery.delay.micros | Delay to wait before redelivering messages that failed to be processed | No | 1 | N/A |

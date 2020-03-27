@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -41,10 +40,13 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecordUtil;
@@ -91,16 +93,14 @@ public class PulsarSourceTask extends SourceTask {
             }
         }
         List<String> topics = getTopicNames(properties);
-        String subscriptionName = config.getString(SUBSCRIPTION_NAME_CONFIG);
-        if (subscriptionName == null) {
-            subscriptionName = UUID.randomUUID().toString();
-        }
         int batchMaxNumMessages = config.getInt(BATCH_MAX_NUM_MESSAGES_CONFIG);
         int batchMaxNumBytes = config.getInt(BATCH_MAX_NUM_BYTES_CONFIG);
         int batchTimeout = config.getInt(BATCH_TIMEOUT_CONFIG);
-        boolean structEnabled = config.getBoolean(STRUCT_ENABLED_CONFIG);
-        createConsumers(topics, subscriptionName, batchTimeout,
-            batchMaxNumMessages, batchMaxNumBytes, structEnabled);
+        boolean deadLetterTopicEnabled = config.getBoolean(DEAD_LETTER_TOPIC_ENABLED_CONFIG);
+        int maxRedeliverCount = config.getInt(DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_CONFIG);
+        boolean schemaDeserializationEnabled = config.getBoolean(SCHEMA_DESERIALIZATION_ENABLED_CONFIG);
+        createConsumers(topics, batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+            deadLetterTopicEnabled, maxRedeliverCount, schemaDeserializationEnabled);
     }
 
     private List<String> getTopicNames(Map<String, String> properties) {
@@ -117,14 +117,22 @@ public class PulsarSourceTask extends SourceTask {
         return String.format("%s/%d", topic, schemaVersion);
     }
 
-    private void createConsumers(List<String> topics, String subscriptionName,
-        int batchTimeout, int batchMaxNumMessages, int batchMaxNumBytes,
-        boolean structEnabled) {
+    private String subscriptionName(String topic) {
+        return String.format("connect-task-%s", topic);
+    }
+
+    private String deadLetterTopic(String topic) {
+        return String.format("connect-task-%s-dlq", topic);
+    }
+
+    private void createConsumers(List<String> topics, int batchTimeout,
+        int batchMaxNumMessages, int batchMaxNumBytes, boolean deadLetterTopicEnabled,
+        int maxRedeliverCount, boolean schemaDeserializationEnabled) {
         bytesBasedConsumers = new ArrayList<>();
         structBasedConsumers = new ArrayList<>();
         schemas = new HashMap<>();
         for (String topic : topics) {
-            if (structEnabled) {
+            if (schemaDeserializationEnabled) {
                 SchemaInfoWithVersion schemaInfoWithVersion = null;
                 try {
                     schemaInfoWithVersion = pulsarAdmin.schemas()
@@ -142,8 +150,8 @@ public class PulsarSourceTask extends SourceTask {
                         schemas.put(schemaKey, schema);
                         try {
                             structBasedConsumers.add(createStructBasedConsumer(topic,
-                                subscriptionName, batchTimeout, batchMaxNumMessages,
-                                batchMaxNumBytes));
+                                batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                                deadLetterTopicEnabled, maxRedeliverCount));
                         } catch (PulsarClientException pce) {
                             if (log.isErrorEnabled()) {
                                 log.error("Error while creating a consumer for topic '%s': ", topic);
@@ -153,8 +161,8 @@ public class PulsarSourceTask extends SourceTask {
                     } else {
                         try {
                             bytesBasedConsumers.add(createBytesBasedConsumer(topic,
-                                subscriptionName, batchTimeout, batchMaxNumMessages,
-                                batchMaxNumBytes));
+                                batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                                deadLetterTopicEnabled, maxRedeliverCount));
                         } catch (PulsarClientException pce) {
                             if (log.isErrorEnabled()) {
                                 log.error("Error while creating a consumer for topic '%s': ", topic);
@@ -165,8 +173,8 @@ public class PulsarSourceTask extends SourceTask {
                 } else {
                     try {
                         bytesBasedConsumers.add(createBytesBasedConsumer(topic,
-                            subscriptionName, batchTimeout, batchMaxNumMessages,
-                            batchMaxNumBytes));
+                            batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                            deadLetterTopicEnabled, maxRedeliverCount));
                     } catch (PulsarClientException pce) {
                         if (log.isErrorEnabled()) {
                             log.error("Error while creating a consumer for topic '%s': ", topic);
@@ -177,8 +185,8 @@ public class PulsarSourceTask extends SourceTask {
             } else {
                 try {
                     bytesBasedConsumers.add(createBytesBasedConsumer(topic,
-                        subscriptionName, batchTimeout, batchMaxNumMessages,
-                        batchMaxNumBytes));
+                        batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                        deadLetterTopicEnabled, maxRedeliverCount));
                 } catch (PulsarClientException pce) {
                     if (log.isErrorEnabled()) {
                         log.error("Error while creating a consumer for topic '%s': ", topic);
@@ -190,35 +198,47 @@ public class PulsarSourceTask extends SourceTask {
     }
 
     private Consumer<GenericRecord> createStructBasedConsumer(String topic,
-        String subscriptionName, int batchTimeout, int batchMaxNumMessages,
-        int batchMaxNumBytes) throws PulsarClientException {
-        return pulsarClient
-            .newConsumer(org.apache.pulsar.client.api.Schema.AUTO_CONSUME())
-            .topic(topic)
-            .subscriptionName(subscriptionName)
-            .loadConf(consumerConfig())
-            .batchReceivePolicy(BatchReceivePolicy.builder()
-                .timeout(batchTimeout, TimeUnit.MILLISECONDS)
-                .maxNumMessages(batchMaxNumMessages)
-                .maxNumBytes(batchMaxNumBytes)
-                .build())
-            .subscribe();
+        int batchTimeout, int batchMaxNumMessages, int batchMaxNumBytes,
+        boolean deadLetterTopicEnabled, int maxRedeliverCount) throws PulsarClientException {
+        ConsumerBuilder<GenericRecord> builder = pulsarClient.newConsumer(
+            org.apache.pulsar.client.api.Schema.AUTO_CONSUME())
+                .loadConf(consumerConfig())
+                .subscriptionName(subscriptionName(topic))
+                .topic(topic)
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                    .timeout(batchTimeout, TimeUnit.MILLISECONDS)
+                    .maxNumMessages(batchMaxNumMessages)
+                    .maxNumBytes(batchMaxNumBytes)
+                    .build());
+        if (deadLetterTopicEnabled) {
+            builder.deadLetterPolicy(DeadLetterPolicy.builder()
+                .deadLetterTopic(deadLetterTopic(topic))
+                .maxRedeliverCount(maxRedeliverCount)
+                .build());
+        }
+        return builder.subscribe();
     }
 
     private Consumer<byte[]> createBytesBasedConsumer(String topic,
-        String subscriptionName, int batchTimeout, int batchMaxNumMessages,
-        int batchMaxNumBytes) throws PulsarClientException {
-        return pulsarClient
-            .newConsumer(org.apache.pulsar.client.api.Schema.BYTES)
-            .topic(topic)
-            .subscriptionName(subscriptionName)
-            .loadConf(consumerConfig())
-            .batchReceivePolicy(BatchReceivePolicy.builder()
-                .timeout(batchTimeout, TimeUnit.MILLISECONDS)
-                .maxNumMessages(batchMaxNumMessages)
-                .maxNumBytes(batchMaxNumBytes)
-                .build())
-            .subscribe();
+        int batchTimeout, int batchMaxNumMessages, int batchMaxNumBytes,
+        boolean deadLetterTopicEnabled, int maxRedeliverCount) throws PulsarClientException {
+        ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer(
+            org.apache.pulsar.client.api.Schema.BYTES)
+                .loadConf(consumerConfig())
+                .subscriptionName(subscriptionName(topic))
+                .topic(topic)
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                    .timeout(batchTimeout, TimeUnit.MILLISECONDS)
+                    .maxNumMessages(batchMaxNumMessages)
+                    .maxNumBytes(batchMaxNumBytes)
+                    .build());
+        if (deadLetterTopicEnabled) {
+            builder.deadLetterPolicy(DeadLetterPolicy.builder()
+                .deadLetterTopic(deadLetterTopic(topic))
+                .maxRedeliverCount(maxRedeliverCount)
+                .build());
+        }
+        return builder.subscribe();
     }
 
     private Map<String, Object> clientConfig() {
@@ -247,7 +267,7 @@ public class PulsarSourceTask extends SourceTask {
 
     private Map<String, Object> consumerConfig() {
         Map<String, Object> consumerConfig = new HashMap<>();
-        consumerConfig.put("subscriptionType", config.getString(SUBSCRIPTION_TYPE_CONFIG));
+        consumerConfig.put("subscriptionType", SubscriptionType.Exclusive.name());
         consumerConfig.put("receiverQueueSize", config.getInt(RECEIVER_QUEUE_SIZE_CONFIG));
         consumerConfig.put("acknowledgementsGroupTimeMicros", TimeUnit.MILLISECONDS.toMicros(config.getLong(ACKNOWLEDMENTS_GROUP_TIME_MICROS_CONFIG)));
         consumerConfig.put("negativeAckRedeliveryDelayMicros", TimeUnit.MILLISECONDS.toMicros(config.getLong(NEGATIVE_ACK_REDELIVERY_DELAY_MICROS_CONFIG)));
