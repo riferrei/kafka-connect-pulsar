@@ -329,8 +329,8 @@ public class PulsarSourceTask extends SourceTask {
         String topic = getTopicName(message.getTopicName());
         String offset = message.getMessageId().toString();
         return new SourceRecord(
-            Collections.singletonMap(topic, topic),
-            Collections.singletonMap(offset, offset),
+            Collections.singletonMap(sourcePartition, topic),
+            Collections.singletonMap(sourceOffset, offset),
             topic, Schema.BYTES_SCHEMA, message.getKeyBytes(),
             Schema.BYTES_SCHEMA, message.getData());
     }
