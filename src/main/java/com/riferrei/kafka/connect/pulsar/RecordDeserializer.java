@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.data.Values;
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -214,6 +215,11 @@ public class RecordDeserializer implements Deserializer<GenericRecord> {
                     }
                 }
                 struct.put(field.name(), fieldValue);
+            } else {
+                if (!field.schema().isOptional()) {
+                    throw new DataException(String.format("Field '%s' "
+                    + "is required but no value was set.", field.name()));
+                }
             }
         }
         return struct;
