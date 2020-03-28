@@ -32,8 +32,8 @@ public class BytesDeserializer implements Deserializer<byte[]> {
             message.getTopicName(), topicNamingStrategy);
         String offset = message.getMessageId().toString();
         return new SourceRecord(
-            Collections.singletonMap("topic", topic),
-            Collections.singletonMap("offset", offset),
+            Collections.singletonMap(SOURCE_PARTITION, topic),
+            Collections.singletonMap(SOURCE_OFFSET, offset),
             topic, Schema.BYTES_SCHEMA, message.getKeyBytes(),
             Schema.BYTES_SCHEMA, message.getData());
     }

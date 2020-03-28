@@ -76,8 +76,8 @@ public class RecordDeserializer implements Deserializer<GenericRecord> {
             Struct value = buildStruct(record, valueSchema);
             topic = TopicNameUtil.getTopic(topic, topicNamingStrategy);
             return new SourceRecord(
-                Collections.singletonMap("topic", topic),
-                Collections.singletonMap("offset", offset),
+                Collections.singletonMap(SOURCE_PARTITION, topic),
+                Collections.singletonMap(SOURCE_OFFSET, offset),
                 topic, Schema.BYTES_SCHEMA, message.getKeyBytes(),
                 value.schema(), value);
     }
