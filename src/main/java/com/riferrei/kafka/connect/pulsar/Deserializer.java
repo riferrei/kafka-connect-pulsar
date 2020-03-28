@@ -25,7 +25,6 @@ public interface Deserializer<T> {
     String SOURCE_PARTITION = "topic";
     String SOURCE_OFFSET = "messageId";
 
-    SourceRecord deserialize(Message<T> message,
-        TopicNamingStrategy topicNamingStrategy);
+    SourceRecord deserialize(Message<T> message);
 
 }

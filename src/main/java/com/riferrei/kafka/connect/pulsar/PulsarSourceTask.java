@@ -51,7 +51,6 @@ public class PulsarSourceTask extends SourceTask {
     private static Logger log = LoggerFactory.getLogger(PulsarSourceTask.class);
 
     private PulsarSourceConnectorConfig config;
-    private TopicNamingStrategy topicNamingStrategy;
     private PulsarAdmin pulsarAdmin;
     private PulsarClient pulsarClient;
 
@@ -61,6 +60,7 @@ public class PulsarSourceTask extends SourceTask {
 
     private Deserializer<byte[]> bytesDeserializer;
     private Deserializer<GenericRecord> recordDeserializer;
+    private Deserializer<Any> protoBufDeserializer;
 
     @Override
     public String version() {
@@ -70,8 +70,6 @@ public class PulsarSourceTask extends SourceTask {
     @Override
     public void start(Map<String, String> properties) {
         config = new PulsarSourceConnectorConfig(properties);
-        String tnso = config.getString(TOPIC_NAMING_STRATEGY_CONFIG);
-        topicNamingStrategy = TopicNamingStrategy.valueOf(tnso);
         String serviceHttpUrl = config.getString(SERVICE_HTTP_URL_CONFIG);
         String serviceUrl = config.getString(SERVICE_URL_CONFIG);
         try {
@@ -134,75 +132,43 @@ public class PulsarSourceTask extends SourceTask {
                     SchemaRegistry.createSchema(topic, schemaInfo, schemaVersion);
                     switch (schemaInfo.getType()) {
                         case JSON: case AVRO:
-                            try {
-                                recordBasedConsumers.add(createRecordBasedConsumer(topic,
-                                    batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
-                                    deadLetterTopicEnabled, maxRedeliverCount));
-                            } catch (PulsarClientException pce) {
-                                if (log.isErrorEnabled()) {
-                                    log.error("Error while creating a consumer for topic '%s': ", topic);
-                                    log.error("Error: ", pce);
-                                }
-                            }
+                            recordBasedConsumers.add(createRecordBasedConsumer(topic,
+                                batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                                deadLetterTopicEnabled, maxRedeliverCount));
                             break;
                         case PROTOBUF:
-                            try {
-                                protoBufBasedConsumers.add(createProtoBufBasedConsumer(topic,
-                                    batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
-                                    deadLetterTopicEnabled, maxRedeliverCount));
-                            } catch (PulsarClientException pce) {
-                                if (log.isErrorEnabled()) {
-                                    log.error("Error while creating a consumer for topic '%s': ", topic);
-                                    log.error("Error: ", pce);
-                                }
-                            }
+                            protoBufBasedConsumers.add(createProtoBufBasedConsumer(topic,
+                                batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                                deadLetterTopicEnabled, maxRedeliverCount));
                             break;
                         default:
-                            try {
-                                bytesBasedConsumers.add(createBytesBasedConsumer(topic,
-                                    batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
-                                    deadLetterTopicEnabled, maxRedeliverCount));
-                            } catch (PulsarClientException pce) {
-                                if (log.isErrorEnabled()) {
-                                    log.error("Error while creating a consumer for topic '%s': ", topic);
-                                    log.error("Error: ", pce);
-                                }
-                            }
+                            bytesBasedConsumers.add(createBytesBasedConsumer(topic,
+                                batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                                deadLetterTopicEnabled, maxRedeliverCount));
                             break;
                     }
                 } else {
-                    try {
-                        bytesBasedConsumers.add(createBytesBasedConsumer(topic,
-                            batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
-                            deadLetterTopicEnabled, maxRedeliverCount));
-                    } catch (PulsarClientException pce) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Error while creating a consumer for topic '%s': ", topic);
-                            log.error("Error: ", pce);
-                        }
-                    }
-                }
-            } else {
-                try {
                     bytesBasedConsumers.add(createBytesBasedConsumer(topic,
                         batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
                         deadLetterTopicEnabled, maxRedeliverCount));
-                } catch (PulsarClientException pce) {
-                    if (log.isErrorEnabled()) {
-                        log.error("Error while creating a consumer for topic '%s': ", topic);
-                        log.error("Error: ", pce);
-                    }
                 }
+            } else {
+                bytesBasedConsumers.add(createBytesBasedConsumer(topic,
+                    batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
+                    deadLetterTopicEnabled, maxRedeliverCount));
             }
         }
     }
 
     private Consumer<byte[]> createBytesBasedConsumer(String topic,
         int batchTimeout, int batchMaxNumMessages, int batchMaxNumBytes,
-        boolean deadLetterTopicEnabled, int maxRedeliverCount) throws PulsarClientException {
+        boolean deadLetterTopicEnabled, int maxRedeliverCount) {
         if (bytesDeserializer == null) {
-            bytesDeserializer = new BytesDeserializer();
+            String tns = config.getString(TOPIC_NAMING_STRATEGY_CONFIG);
+            TopicNamingStrategy topicNamingStrategy = TopicNamingStrategy.valueOf(tns);
+            bytesDeserializer = new BytesDeserializer(topicNamingStrategy);
         }
+        Consumer<byte[]> consumer = null;
         ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer(
             org.apache.pulsar.client.api.Schema.BYTES)
                 .loadConf(consumerConfig())
@@ -219,15 +185,26 @@ public class PulsarSourceTask extends SourceTask {
                 .maxRedeliverCount(maxRedeliverCount)
                 .build());
         }
-        return builder.subscribe();
+        try {
+            consumer = builder.subscribe();
+        } catch (PulsarClientException pce) {
+            if (log.isErrorEnabled()) {
+                log.error("Error creating consumer for topic '%s': ", topic);
+                log.error("Error: ", pce);
+            }
+        }
+        return consumer;
     }
 
     private Consumer<GenericRecord> createRecordBasedConsumer(String topic,
         int batchTimeout, int batchMaxNumMessages, int batchMaxNumBytes,
-        boolean deadLetterTopicEnabled, int maxRedeliverCount) throws PulsarClientException {
+        boolean deadLetterTopicEnabled, int maxRedeliverCount) {
         if (recordDeserializer == null) {
-            recordDeserializer = new RecordDeserializer(pulsarAdmin);
+            String tns = config.getString(TOPIC_NAMING_STRATEGY_CONFIG);
+            TopicNamingStrategy topicNamingStrategy = TopicNamingStrategy.valueOf(tns);
+            recordDeserializer = new RecordDeserializer(pulsarAdmin, topicNamingStrategy);
         }
+        Consumer<GenericRecord> consumer = null;
         ConsumerBuilder<GenericRecord> builder = pulsarClient.newConsumer(
             org.apache.pulsar.client.api.Schema.AUTO_CONSUME())
                 .loadConf(consumerConfig())
@@ -244,12 +221,29 @@ public class PulsarSourceTask extends SourceTask {
                 .maxRedeliverCount(maxRedeliverCount)
                 .build());
         }
-        return builder.subscribe();
+        try {
+            consumer = builder.subscribe();
+        } catch (PulsarClientException pce) {
+            if (log.isErrorEnabled()) {
+                log.error("Error creating consumer for topic '%s': ", topic);
+                log.error("Error: ", pce);
+            }
+        }
+        return consumer;
     }
 
     private Consumer<Any> createProtoBufBasedConsumer(String topic,
         int batchTimeout, int batchMaxNumMessages, int batchMaxNumBytes,
-        boolean deadLetterTopicEnabled, int maxRedeliverCount) throws PulsarClientException {
+        boolean deadLetterTopicEnabled, int maxRedeliverCount) {
+        if (protoBufDeserializer == null) {
+            String tns = config.getString(TOPIC_NAMING_STRATEGY_CONFIG);
+            TopicNamingStrategy topicNamingStrategy = TopicNamingStrategy.valueOf(tns);
+            String generatedClass = config.getString(PROTOBUF_JAVA_GENERATED_CLASS_CONFIG);
+            String messageClass = config.getString(PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG);
+            protoBufDeserializer = new ProtoBufDeserializer(generatedClass, messageClass,
+                pulsarAdmin, topicNamingStrategy);
+        }
+        Consumer<Any> consumer = null;
         ConsumerBuilder<Any> builder = pulsarClient.newConsumer(
             org.apache.pulsar.client.api.Schema.PROTOBUF(Any.class))
                 .loadConf(consumerConfig())
@@ -266,7 +260,15 @@ public class PulsarSourceTask extends SourceTask {
                 .maxRedeliverCount(maxRedeliverCount)
                 .build());
         }
-        return builder.subscribe();
+        try {
+            consumer = builder.subscribe();
+        } catch (PulsarClientException pce) {
+            if (log.isErrorEnabled()) {
+                log.error("Error creating consumer for topic '%s': ", topic);
+                log.error("Error: ", pce);
+            }
+        }
+        return consumer;
     }
 
     private Map<String, Object> clientConfig() {
@@ -321,7 +323,7 @@ public class PulsarSourceTask extends SourceTask {
             try {
                 messages = consumer.batchReceive();
             } catch (Exception ex) {
-                log.warn("Error while polling for messages", ex);
+                log.warn("Error while polling messages", ex);
             }
             if (messages != null && messages.size() > 0) {
                 for (Message<byte[]> message : messages) {
@@ -342,7 +344,7 @@ public class PulsarSourceTask extends SourceTask {
             try {
                 messages = consumer.batchReceive();
             } catch (Exception ex) {
-                log.warn("Error while polling for messages", ex);
+                log.warn("Error while polling messages", ex);
             }
             if (messages != null && messages.size() > 0) {
                 for (Message<GenericRecord> message : messages) {
@@ -363,7 +365,7 @@ public class PulsarSourceTask extends SourceTask {
             try {
                 messages = consumer.batchReceive();
             } catch (Exception ex) {
-                log.warn("Error while polling for messages", ex);
+                log.warn("Error while polling messages", ex);
             }
             if (messages != null && messages.size() > 0) {
                 for (Message<Any> message : messages) {
@@ -382,15 +384,15 @@ public class PulsarSourceTask extends SourceTask {
     }
 
     private SourceRecord fromBytes(Message<byte[]> message) {
-        return bytesDeserializer.deserialize(message, topicNamingStrategy);
+        return bytesDeserializer.deserialize(message);
     }
 
     private SourceRecord fromRecord(Message<GenericRecord> message) {
-        return recordDeserializer.deserialize(message, topicNamingStrategy);
+        return recordDeserializer.deserialize(message);
     }
 
     private SourceRecord fromProtoBuf(Message<Any> message) {
-        return null;
+        return protoBufDeserializer.deserialize(message);
     }
 
     @Override
@@ -401,7 +403,7 @@ public class PulsarSourceTask extends SourceTask {
         for (Consumer<byte[]> consumer : bytesBasedConsumers) {
             consumer.closeAsync().exceptionally((ex) -> {
                 if (log.isErrorEnabled()) {
-                    log.error("Error while closing a consumer", ex);
+                    log.error("Error closing a consumer", ex);
                 }
                 return null;
             });
@@ -409,7 +411,7 @@ public class PulsarSourceTask extends SourceTask {
         for (Consumer<GenericRecord> consumer : recordBasedConsumers) {
             consumer.closeAsync().exceptionally((ex) -> {
                 if (log.isErrorEnabled()) {
-                    log.error("Error while closing a consumer", ex);
+                    log.error("Error closing a consumer", ex);
                 }
                 return null;
             });
@@ -417,7 +419,7 @@ public class PulsarSourceTask extends SourceTask {
         for (Consumer<Any> consumer : protoBufBasedConsumers) {
             consumer.closeAsync().exceptionally((ex) -> {
                 if (log.isErrorEnabled()) {
-                    log.error("Error while closing a consumer", ex);
+                    log.error("Error closing a consumer", ex);
                 }
                 return null;
             });
@@ -425,7 +427,7 @@ public class PulsarSourceTask extends SourceTask {
         if (pulsarClient != null) {
             pulsarClient.closeAsync().exceptionally((ex) -> {
                 if (log.isErrorEnabled()) {
-                    log.error("Error while closing a client", ex);
+                    log.error("Error closing a client", ex);
                 }
                 return null;
             });

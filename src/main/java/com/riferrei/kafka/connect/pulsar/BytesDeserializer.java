@@ -25,9 +25,14 @@ import org.apache.pulsar.client.api.Message;
 
 public class BytesDeserializer implements Deserializer<byte[]> {
 
+    private TopicNamingStrategy topicNamingStrategy;
+
+    public BytesDeserializer(TopicNamingStrategy topicNamingStrategy) {
+        this.topicNamingStrategy = topicNamingStrategy;
+    }
+
     @Override
-    public SourceRecord deserialize(Message<byte[]> message,
-        TopicNamingStrategy topicNamingStrategy) {
+    public SourceRecord deserialize(Message<byte[]> message) {
         String topic = TopicNameUtil.getTopic(
             message.getTopicName(), topicNamingStrategy);
         String offset = message.getMessageId().toString();

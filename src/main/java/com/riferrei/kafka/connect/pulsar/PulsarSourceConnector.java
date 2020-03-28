@@ -124,7 +124,7 @@ public class PulsarSourceConnector extends SourceConnector {
         }
         if (topicList.isEmpty()) {
             taskConfigs = Collections.emptyList();
-            log.warn("No tasks will be created because there is zero topics to subscribe.");
+            log.warn("No tasks created because there is zero topics to subscribe.");
         } else {
             int numGroups = Math.min(topicList.size(), maxTasks);
             List<List<String>> topicSources = ConnectorUtils.groupPartitions(topicList, numGroups);

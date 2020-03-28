@@ -46,14 +46,16 @@ public class RecordDeserializer implements Deserializer<GenericRecord> {
     private static Logger log = LoggerFactory.getLogger(RecordDeserializer.class);
 
     private PulsarAdmin pulsarAdmin;
+    private TopicNamingStrategy topicNamingStrategy;
 
-    public RecordDeserializer(PulsarAdmin pulsarAdmin) {
+    public RecordDeserializer(PulsarAdmin pulsarAdmin,
+        TopicNamingStrategy topicNamingStrategy) {
         this.pulsarAdmin = pulsarAdmin;
+        this.topicNamingStrategy = topicNamingStrategy;
     }
 
     @Override
-    public SourceRecord deserialize(Message<GenericRecord> message,
-        TopicNamingStrategy topicNamingStrategy) {
+    public SourceRecord deserialize(Message<GenericRecord> message) {
             String topic = message.getTopicName();
             String offset = message.getMessageId().toString();
             byte[] schemaVersionBytes = message.getSchemaVersion();
