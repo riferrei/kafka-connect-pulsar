@@ -270,7 +270,7 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
         connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
-        connectorProps.put(SCHEMA_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
+        connectorProps.put(MESSAGE_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
@@ -300,7 +300,7 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
         connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
-        connectorProps.put(SCHEMA_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
+        connectorProps.put(MESSAGE_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
@@ -330,7 +330,7 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
         connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
-        connectorProps.put(SCHEMA_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
+        connectorProps.put(MESSAGE_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
         Map<String, String> taskProps = getTaskProps(connectorProps);
         PulsarSourceTask task = new PulsarSourceTask();
         assertDoesNotThrow(() -> {
@@ -360,7 +360,7 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(SERVICE_HTTP_URL_CONFIG, getServiceHttpUrl());
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
         connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
-        connectorProps.put(SCHEMA_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
+        connectorProps.put(MESSAGE_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
         connectorProps.put(PROTOBUF_JAVA_GENERATED_CLASS_CONFIG,
             ProtoBufGenComplexType.class.getName());
         connectorProps.put(PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG,

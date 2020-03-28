@@ -93,9 +93,9 @@ public class PulsarSourceTask extends SourceTask {
         int batchTimeout = config.getInt(BATCH_TIMEOUT_CONFIG);
         boolean deadLetterTopicEnabled = config.getBoolean(DEAD_LETTER_TOPIC_ENABLED_CONFIG);
         int maxRedeliverCount = config.getInt(DEAD_LETTER_TOPIC_MAX_REDELIVER_COUNT_CONFIG);
-        boolean schemaDeserializationEnabled = config.getBoolean(SCHEMA_DESERIALIZATION_ENABLED_CONFIG);
+        boolean messageDeserializationEnabled = config.getBoolean(MESSAGE_DESERIALIZATION_ENABLED_CONFIG);
         createConsumers(topics, batchTimeout, batchMaxNumMessages, batchMaxNumBytes,
-            deadLetterTopicEnabled, maxRedeliverCount, schemaDeserializationEnabled);
+            deadLetterTopicEnabled, maxRedeliverCount, messageDeserializationEnabled);
     }
 
     private List<String> getTopicNames(Map<String, String> properties) {
@@ -118,9 +118,9 @@ public class PulsarSourceTask extends SourceTask {
 
     private void createConsumers(List<String> topics, int batchTimeout,
         int batchMaxNumMessages, int batchMaxNumBytes, boolean deadLetterTopicEnabled,
-        int maxRedeliverCount, boolean schemaDeserializationEnabled) {
+        int maxRedeliverCount, boolean messageDeserializationEnabled) {
         for (String topic : topics) {
-            if (schemaDeserializationEnabled) {
+            if (messageDeserializationEnabled) {
                 SchemaInfoWithVersion schemaInfoWithVersion = null;
                 try {
                     schemaInfoWithVersion = pulsarAdmin.schemas()
