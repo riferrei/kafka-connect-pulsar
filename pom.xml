@@ -165,7 +165,7 @@
             <plugin>
                 <groupId>com.github.os72</groupId>
                 <artifactId>protoc-jar-maven-plugin</artifactId>
-                <version>3.7.1</version>
+                <version>3.7.1</version><!-- Don't change it -->
                 <executions>
                     <execution>
                         <phase>generate-test-sources</phase>

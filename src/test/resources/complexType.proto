@@ -31,7 +31,3 @@ message ProtoBufComplexType {
     }
 
 }
-
-message ProtoBufComplexTypes {
-    repeated ProtoBufComplexType complexType = 1;
-}
