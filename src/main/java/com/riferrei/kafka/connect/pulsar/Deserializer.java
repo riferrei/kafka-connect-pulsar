@@ -22,8 +22,8 @@ import org.apache.pulsar.client.api.Message;
 
 public interface Deserializer<T> {
 
-    public static final String SOURCE_PARTITION = "topic";
-    public static final String SOURCE_OFFSET = "messageId";
+    String SOURCE_PARTITION = "topic";
+    String SOURCE_OFFSET = "messageId";
 
     SourceRecord deserialize(Message<T> message,
         TopicNamingStrategy topicNamingStrategy);
