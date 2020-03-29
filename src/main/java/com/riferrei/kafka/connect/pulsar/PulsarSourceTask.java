@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -81,9 +82,7 @@ public class PulsarSourceTask extends SourceTask {
                 .loadConf(clientConfig())
                 .build();
         } catch (PulsarClientException pce) {
-            if (log.isErrorEnabled()) {
-                log.error("Error while creating clients: ", pce);
-            }
+            throw new ConnectException("Error while creating clients");
         }
         List<String> topics = getTopicNames(properties);
         int batchMaxNumMessages = config.getInt(BATCH_MAX_NUM_MESSAGES_CONFIG);
@@ -188,10 +187,9 @@ public class PulsarSourceTask extends SourceTask {
         try {
             consumer = builder.subscribe();
         } catch (PulsarClientException pce) {
-            if (log.isErrorEnabled()) {
-                log.error("Error creating consumer for topic '%s': ", topic);
-                log.error("Error: ", pce);
-            }
+            throw new ConnectException(String.format(
+                "Error creating consumer for topic '%s'",
+                topic), pce);
         }
         return consumer;
     }
@@ -224,10 +222,9 @@ public class PulsarSourceTask extends SourceTask {
         try {
             consumer = builder.subscribe();
         } catch (PulsarClientException pce) {
-            if (log.isErrorEnabled()) {
-                log.error("Error creating consumer for topic '%s': ", topic);
-                log.error("Error: ", pce);
-            }
+            throw new ConnectException(String.format(
+                "Error creating consumer for topic '%s'",
+                topic), pce);
         }
         return consumer;
     }
@@ -238,10 +235,9 @@ public class PulsarSourceTask extends SourceTask {
         if (protoBufDeserializer == null) {
             String tns = config.getString(TOPIC_NAMING_STRATEGY_CONFIG);
             TopicNamingStrategy topicNamingStrategy = TopicNamingStrategy.valueOf(tns);
-            String generatedClass = config.getString(PROTOBUF_JAVA_GENERATED_CLASS_CONFIG);
             String messageClass = config.getString(PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG);
-            protoBufDeserializer = new ProtoBufDeserializer(generatedClass, messageClass,
-                pulsarAdmin, topicNamingStrategy);
+            protoBufDeserializer = new ProtoBufDeserializer(pulsarAdmin, topicNamingStrategy,
+                messageClass);
         }
         Consumer<Any> consumer = null;
         ConsumerBuilder<Any> builder = pulsarClient.newConsumer(
@@ -263,10 +259,9 @@ public class PulsarSourceTask extends SourceTask {
         try {
             consumer = builder.subscribe();
         } catch (PulsarClientException pce) {
-            if (log.isErrorEnabled()) {
-                log.error("Error creating consumer for topic '%s': ", topic);
-                log.error("Error: ", pce);
-            }
+            throw new ConnectException(String.format(
+                "Error creating consumer for topic '%s'",
+                topic), pce);
         }
         return consumer;
     }

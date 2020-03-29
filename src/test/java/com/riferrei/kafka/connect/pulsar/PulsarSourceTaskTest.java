@@ -361,8 +361,6 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
         connectorProps.put(BATCH_MAX_NUM_MESSAGES_CONFIG, String.valueOf(numMsgs));
         connectorProps.put(TOPIC_WHITELIST_CONFIG, topic);
         connectorProps.put(MESSAGE_DESERIALIZATION_ENABLED_CONFIG, String.valueOf(true));
-        connectorProps.put(PROTOBUF_JAVA_GENERATED_CLASS_CONFIG,
-            ProtoBufGenComplexType.class.getName());
         connectorProps.put(PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG,
             ProtoBufGenComplexType.ProtoBufComplexType.class.getName());
         Map<String, String> taskProps = getTaskProps(connectorProps);
@@ -372,11 +370,11 @@ public class PulsarSourceTaskTest extends AbstractBasicTest {
                 task.start(taskProps);
                 produceProtoBufBasedMessages(topic, numMsgs);
                 List<SourceRecord> records = task.poll();
-                //assertEquals(numMsgs, records.size());
-                //SourceRecord record = records.get(0);
-                //Schema schema = record.valueSchema();
-                //assertEquals(schema.type(), Type.BYTES);
-                //assertTrue(record.value() instanceof byte[]);
+                assertEquals(numMsgs, records.size());
+                SourceRecord record = records.get(0);
+                Schema schema = record.valueSchema();
+                assertEquals(schema.type(), Type.STRUCT);
+                assertTrue(record.value() instanceof Struct);
             } finally {
                 task.stop();
             }
