@@ -75,7 +75,7 @@ public class ProtoBufDeserializer implements Deserializer<Any> {
             try {
                 schemaInfo = pulsarAdmin.schemas().getSchemaInfo(topic, schemaVersion);
             } catch (PulsarAdminException pae) {
-                log.warn("A record-based message was received for the "
+                log.warn("A protobuf-based message was received for the "
                     + "topic '%s' containing the specific schema version "
                     + "%d but the schema could not be found. This should "
                     + "not be possible!", topic, schemaVersion);
