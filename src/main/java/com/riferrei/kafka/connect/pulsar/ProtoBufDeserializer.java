@@ -140,6 +140,7 @@ public class ProtoBufDeserializer implements Deserializer<Any> {
                                 if (fieldValue instanceof Descriptors.EnumValueDescriptor) {
                                     fieldValue = fieldValue.toString();
                                 }
+                                fieldValue = convert(null, fieldSchema, fieldValue);
                                 break;
                         }
                         struct.put(fieldName, fieldValue);
@@ -173,8 +174,7 @@ public class ProtoBufDeserializer implements Deserializer<Any> {
             messageObject = parseFromMethod.invoke(null, messageBytes);
         } catch (ClassNotFoundException cnfe) {
             throw new ConnectException(String.format(
-                "The message class '%s' was not found",
-                messageClass), cnfe);
+                "Message class '%s' was not found", messageClass), cnfe);
         } catch (Exception ex) {
             throw new ConnectException("Error creating an object "
                 + "out of the bytes from the serialized message", ex);
@@ -185,28 +185,44 @@ public class ProtoBufDeserializer implements Deserializer<Any> {
     private Object convert(Schema fromSchema, Schema toSchema, Object value) {
         switch (toSchema.type()) {
             case INT8:
-                value = Values.convertToByte(fromSchema, value);
+                if (!(value instanceof Byte)) {
+                    value = Values.convertToByte(fromSchema, value);
+                }
                 break;
             case INT16:
-                value = Values.convertToShort(fromSchema, value);
+                if (!(value instanceof Short)) {
+                    value = Values.convertToShort(fromSchema, value);
+                }
                 break;
             case INT32:
-                value = Values.convertToInteger(fromSchema, value);
+                if (!(value instanceof Integer)) {
+                    value = Values.convertToInteger(fromSchema, value);
+                }
                 break;
             case INT64:
-                value = Values.convertToLong(fromSchema, value);
+                if (!(value instanceof Long)) {
+                    value = Values.convertToLong(fromSchema, value);
+                }
                 break;
             case FLOAT32:
-                value = Values.convertToFloat(fromSchema, value);
+                if (!(value instanceof Float)) {
+                    value = Values.convertToFloat(fromSchema, value);
+                }
                 break;
             case FLOAT64:
-                value = Values.convertToDouble(fromSchema, value);
+                if (!(value instanceof Double)) {
+                    value = Values.convertToDouble(fromSchema, value);
+                }
                 break;
             case BOOLEAN:
-                value = Values.convertToBoolean(fromSchema, value);
+                if (!(value instanceof Boolean)) {
+                    value = Values.convertToBoolean(fromSchema, value);
+                }
                 break;
             case STRING:
-                value = Values.convertToString(fromSchema, value);
+                if (!(value instanceof String)) {
+                    value = Values.convertToString(fromSchema, value);
+                }
                 break;
             default:
                 break;
