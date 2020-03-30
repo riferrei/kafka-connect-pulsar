@@ -236,8 +236,16 @@ public class PulsarSourceTask extends SourceTask {
             String tns = config.getString(TOPIC_NAMING_STRATEGY_CONFIG);
             TopicNamingStrategy topicNamingStrategy = TopicNamingStrategy.valueOf(tns);
             String messageClass = config.getString(PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG);
-            protoBufDeserializer = new ProtoBufDeserializer(pulsarAdmin, topicNamingStrategy,
-                messageClass);
+            if (messageClass == null) {
+                throw new ConnectException(String.format("The property '%s' is "
+                    + "enabled and it was found that some topics has schemas "
+                    + "based on Protocol Buffers. Thus, the property '%s' also "
+                    + "need to be enabled in the connector configuration.",
+                    MESSAGE_DESERIALIZATION_ENABLED_CONFIG,
+                    PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG));
+            }
+            protoBufDeserializer = new ProtoBufDeserializer(pulsarAdmin,
+                topicNamingStrategy, messageClass);
         }
         Consumer<Any> consumer = null;
         ConsumerBuilder<Any> builder = pulsarClient.newConsumer(
