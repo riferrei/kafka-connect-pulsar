@@ -238,10 +238,10 @@ public class PulsarSourceTask extends SourceTask {
             String messageClass = config.getString(PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG);
             if (messageClass == null) {
                 throw new ConnectException(String.format("The property '%s' is "
-                    + "enabled and it was found that some topics has schemas "
-                    + "based on Protocol Buffers. Thus, the property '%s' also "
-                    + "need to be enabled in the connector configuration.",
-                    MESSAGE_DESERIALIZATION_ENABLED_CONFIG,
+                    + "enabled and it was detected that the topic '%s' has its "
+                    + "schema based on Protocol Buffers. Thus, the property '%s' "
+                    + "also need to be enabled in the connector configuration.",
+                    MESSAGE_DESERIALIZATION_ENABLED_CONFIG, topic,
                     PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG));
             }
             protoBufDeserializer = new ProtoBufDeserializer(pulsarAdmin,
