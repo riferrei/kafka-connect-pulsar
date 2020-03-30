@@ -48,123 +48,141 @@ public final class SchemaRegistry {
     }
 
     private static Schema buildSchema(String schemaDefinition) {
-        SchemaBuilder schemaBuilder = SchemaBuilder.struct();
-        org.apache.avro.Schema parsedSchema = new Parser().parse(schemaDefinition);
-        schemaBuilder.name(parsedSchema.getName());
-        List<Field> schemaFields = parsedSchema.getFields();
+        final Parser schemaParser = new Parser();
+        final SchemaBuilder schemaBuilder = SchemaBuilder.struct();
+        org.apache.avro.Schema parsed = schemaParser.parse(schemaDefinition);
+        schemaBuilder.name(parsed.getName());
+        List<Field> schemaFields = parsed.getFields();
         for (Field field : schemaFields) {
-            if (field.schema().getType().equals(Type.UNION)) {
-                List<org.apache.avro.Schema> types = field.schema().getTypes();
-                for (org.apache.avro.Schema typeOption : types) {
-                    Type type = typeOption.getType();
-                    if (!type.equals(Type.NULL)) {
-                        if (type.equals(Type.RECORD)) {
-                            String fieldSchemaDef = typeOption.toString();
-                            Schema fieldSchema = buildSchema(fieldSchemaDef);
-                            if (field.hasDefaultValue()) {
-                                schemaBuilder.field(field.name(), fieldSchema)
-                                    .optional().defaultValue(null).build();
-                            } else {
-                                schemaBuilder.field(field.name(), fieldSchema);
-                            }
-                        } else if (type.equals(Type.ARRAY)) {
-                            org.apache.avro.Schema itemType = typeOption.getElementType();
-                            if (itemType.getType().equals(org.apache.avro.Schema.Type.RECORD)) {
-                                org.apache.avro.Schema kType = itemType.getField(key).schema();
-                                Schema keySchema = typeMapping.get(kType.getType());
-                                org.apache.avro.Schema vType = itemType.getField(value).schema();
-                                Schema valueSchema = typeMapping.get(vType.getType());
-                                if (field.hasDefaultValue()) {
-                                    schemaBuilder.field(field.name(), SchemaBuilder.map(
-                                        keySchema, valueSchema)
-                                            .optional()
-                                            .defaultValue(null)
+            org.apache.avro.Schema fieldSchemaRef = field.schema();
+            switch (fieldSchemaRef.getType()) {
+                case UNION:
+                    List<org.apache.avro.Schema> unionTypes = fieldSchemaRef.getTypes();
+                    for (org.apache.avro.Schema typeOption : unionTypes) {
+                        Type type = typeOption.getType();
+                        if (!type.equals(Type.NULL)) {
+                            Schema fieldSchema = null;
+                            Schema valueSchema = null;
+                            switch (type) {
+                                case RECORD:
+                                    String fieldSchemaDef = typeOption.toString();
+                                    fieldSchema = buildSchema(fieldSchemaDef);
+                                    if (field.hasDefaultValue()) {
+                                        schemaBuilder.field(field.name(), fieldSchema)
+                                            .optional().defaultValue(null).build();
+                                    } else {
+                                        schemaBuilder.field(field.name(), fieldSchema);
+                                    }
+                                    break;
+                                case MAP:
+                                    org.apache.avro.Schema valueType = typeOption.getValueType();
+                                    valueSchema = typeMapping.get(valueType.getType());
+                                    if (field.hasDefaultValue()) {
+                                        schemaBuilder.field(field.name(), SchemaBuilder.map(
+                                            Schema.STRING_SCHEMA, valueSchema)
+                                                .optional()
+                                                .defaultValue(null)
+                                                .build());
+                                    } else {
+                                        schemaBuilder.field(field.name(), SchemaBuilder.map(
+                                            Schema.STRING_SCHEMA, valueSchema).build());
+                                    }
+                                    break;
+                                case ARRAY:
+                                    org.apache.avro.Schema itemType = typeOption.getElementType();
+                                    if (itemType.getType().equals(org.apache.avro.Schema.Type.RECORD)) {
+                                        org.apache.avro.Schema kType = itemType.getField(key).schema();
+                                        Schema keySchema = typeMapping.get(kType.getType());
+                                        org.apache.avro.Schema vType = itemType.getField(value).schema();
+                                        valueSchema = typeMapping.get(vType.getType());
+                                        if (field.hasDefaultValue()) {
+                                            schemaBuilder.field(field.name(), SchemaBuilder.map(
+                                                keySchema, valueSchema)
+                                                    .optional()
+                                                    .defaultValue(null)
+                                                    .build());
+                                        } else {
+                                            schemaBuilder.field(field.name(), SchemaBuilder.map(
+                                                keySchema, valueSchema).build());
+                                        }
+                                    } else {
+                                        valueSchema = typeMapping.get(itemType.getType());
+                                        if (field.hasDefaultValue()) {
+                                            schemaBuilder.field(field.name(), SchemaBuilder.array(
+                                                valueSchema)
+                                                    .optional()
+                                                    .defaultValue(null)
+                                                    .build());
+                                        } else {
+                                            schemaBuilder.field(field.name(), SchemaBuilder.array(
+                                                valueSchema).build());
+                                        }
+                                    }
+                                    break;
+                                default:
+                                    fieldSchema = typeMapping.get(type);
+                                    if (field.hasDefaultValue()) {
+                                        Object value = defaultValues.get(fieldSchema);
+                                        schemaBuilder.field(field.name(), SchemaBuilder.type(
+                                            fieldSchema.type()).optional().defaultValue(value)
                                             .build());
-                                } else {
-                                    schemaBuilder.field(field.name(), SchemaBuilder.map(
-                                        keySchema, valueSchema).build());
-                                }
-                            } else {
-                                Schema valueSchema = typeMapping.get(itemType.getType());
-                                if (field.hasDefaultValue()) {
-                                    schemaBuilder.field(field.name(), SchemaBuilder.array(
-                                        valueSchema)
-                                            .optional()
-                                            .defaultValue(null)
-                                            .build());
-                                } else {
-                                    schemaBuilder.field(field.name(), SchemaBuilder.array(
-                                        valueSchema).build());
-                                }
+                                    } else {
+                                        schemaBuilder.field(field.name(), fieldSchema);
+                                    }
+                                    break;
                             }
-                        } else if (type.equals(Type.MAP)) {
-                            org.apache.avro.Schema valueType = typeOption.getValueType();
+                            break;
+                        }
+                    }
+                    break;
+                case ARRAY:
+                    org.apache.avro.Schema itemType = fieldSchemaRef.getElementType();
+                    switch (itemType.getType()) {
+                        case RECORD:
+                            org.apache.avro.Schema keyType = itemType.getField(key).schema();
+                            org.apache.avro.Schema valueType = itemType.getField(value).schema();
+                            Schema keySchema = typeMapping.get(keyType.getType());
                             Schema valueSchema = typeMapping.get(valueType.getType());
                             if (field.hasDefaultValue()) {
                                 schemaBuilder.field(field.name(), SchemaBuilder.map(
-                                    Schema.STRING_SCHEMA, valueSchema)
+                                    keySchema, valueSchema)
                                         .optional()
                                         .defaultValue(null)
                                         .build());
                             } else {
                                 schemaBuilder.field(field.name(), SchemaBuilder.map(
-                                    Schema.STRING_SCHEMA, valueSchema).build());
+                                    keySchema, valueSchema)
+                                        .build());
                             }
-                        } else {
-                            Schema fieldSchema = typeMapping.get(type);
+                            break;
+                        default:
+                            Schema arrayItemSchema = typeMapping.get(itemType.getType());
                             if (field.hasDefaultValue()) {
-                                Object value = defaultValues.get(fieldSchema);
-                                schemaBuilder.field(field.name(), SchemaBuilder.type(
-                                    fieldSchema.type()).optional().defaultValue(value)
-                                    .build());
+                                schemaBuilder.field(field.name(), SchemaBuilder.array(
+                                    arrayItemSchema)
+                                        .optional()
+                                        .defaultValue(null)
+                                        .build());
                             } else {
-                                schemaBuilder.field(field.name(), fieldSchema);
+                                schemaBuilder.field(field.name(), SchemaBuilder.array(
+                                    arrayItemSchema)
+                                        .build());
                             }
-                        }
-                        break;
+                            break;
                     }
-                }
-            } else if (field.schema().getType().equals(Type.ARRAY)) {
-                org.apache.avro.Schema itemType = field.schema().getElementType();
-                if (itemType.getType().equals(org.apache.avro.Schema.Type.RECORD)) {
-                    org.apache.avro.Schema kType = itemType.getField(key).schema();
-                    Schema keySchema = typeMapping.get(kType.getType());
-                    org.apache.avro.Schema vType = itemType.getField(value).schema();
-                    Schema valueSchema = typeMapping.get(vType.getType());
+                    break;
+                default:
+                    Type fieldType = fieldSchemaRef.getType();
+                    Schema fieldSchema = typeMapping.get(fieldType);
                     if (field.hasDefaultValue()) {
-                        schemaBuilder.field(field.name(), SchemaBuilder.map(
-                            keySchema, valueSchema)
-                                .optional()
-                                .defaultValue(null)
-                                .build());
+                        Object value = defaultValues.get(fieldSchema);
+                        schemaBuilder.field(field.name(), SchemaBuilder.type(
+                            fieldSchema.type()).optional().defaultValue(value)
+                            .build());
                     } else {
-                        schemaBuilder.field(field.name(), SchemaBuilder.map(
-                            keySchema, valueSchema).build());
+                        schemaBuilder.field(field.name(), fieldSchema);
                     }
-                } else {
-                    Schema valueSchema = typeMapping.get(itemType.getType());
-                    if (field.hasDefaultValue()) {
-                        schemaBuilder.field(field.name(), SchemaBuilder.array(
-                            valueSchema)
-                                .optional()
-                                .defaultValue(null)
-                                .build());
-                    } else {
-                        schemaBuilder.field(field.name(), SchemaBuilder.array(
-                            valueSchema).build());
-                    }
-                }
-            } else {
-                Type type = field.schema().getType();
-                Schema fieldSchema = typeMapping.get(type);
-                if (field.hasDefaultValue()) {
-                    Object value = defaultValues.get(fieldSchema);
-                    schemaBuilder.field(field.name(), SchemaBuilder.type(
-                        fieldSchema.type()).optional().defaultValue(value)
-                        .build());
-                } else {
-                    schemaBuilder.field(field.name(), fieldSchema);
-                }
+                    break;
             }
         }
         return schemaBuilder.build();
