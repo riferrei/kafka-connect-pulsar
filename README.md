@@ -96,7 +96,7 @@ However, they can be used together to mix up a static and dynamic method about w
 | topic.poll.interval.ms | How often to poll Pulsar for topics matching topic.regex | No | 300000 | N/A || topic.blacklist | List of topics to exclude from read | No | N/A | N/A |
 | dead.letter.topic.enabled | If enabled, it will send failed messages to a topic named 'connect-task-${topicName}-DLQ' | No | false | N/A |
 | dead.letter.topic.max.redeliver.count | Number of redeliver attempts before sending to the DLQ | No | 5 | N/A |
-| message.deserialization.enabled | If enabled, messages serialized with JSON, Avro, or ProtoBuf will be transformed into struct-based records | No | false | N/A |
+| message.deserialization.enabled | If enabled, messages serialized with JSON, Avro, or ProtoBuf will be transformed into struct-based records | No | true | N/A |
 | protobuf.java.message.class | Java class that represents the message type serialized by the producer | No | N/A | N/A |
 | batch.max.num.messages | Maximum number of messages to wait for each batch | No | 10 | N/A |
 | batch.max.num.bytes | Maximum number of bytes to wait for each batch | No | 1024 | N/A |

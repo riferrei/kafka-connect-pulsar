@@ -67,7 +67,7 @@ public class PulsarSourceConnectorConfig extends AbstractConfig {
 
     public static final String MESSAGE_DESERIALIZATION_ENABLED_CONFIG = "message.deserialization.enabled";
     private static final String MESSAGE_DESERIALIZATION_ENABLED_DOC = "If enabled, messages serialized with JSON, Avro, or ProtoBuf will be transformed into struct-based records";
-    private static final boolean MESSAGE_DESERIALIZATION_ENABLED_DEFAULT = false;
+    private static final boolean MESSAGE_DESERIALIZATION_ENABLED_DEFAULT = true;
 
     public static final String PROTOBUF_JAVA_MESSAGE_CLASS_CONFIG = "protobuf.java.message.class";
     private static final String PROTOBUF_JAVA_MESSAGE_CLASS_DOC = "Java class that represents the message type serialized by the producer";
