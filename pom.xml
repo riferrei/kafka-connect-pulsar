@@ -217,7 +217,7 @@
                         <configuration>
                             <ownerUsername>riferrei</ownerUsername>
                             <description>This Pulsar connector allows you to replicate data from Pulsar into Kafka using Connect.</description>
-                            <logo>logos/pulsar.png</logo>
+                            <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
                             <componentTypes>
                                 <componentType>source</componentType>
                             </componentTypes>
