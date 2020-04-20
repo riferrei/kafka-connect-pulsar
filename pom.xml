@@ -216,6 +216,9 @@
                         </goals>
                         <configuration>
                             <ownerUsername>riferrei</ownerUsername>
+                            <ownerName>Ricardo Ferreira</ownerName>
+                            <ownerUrl>https://riferrei.com</ownerUrl>
+                            <ownerType>user</ownerType>
                             <description>This Pulsar connector allows you to replicate data from Pulsar into Kafka using Connect.</description>
                             <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
                             <componentTypes>
