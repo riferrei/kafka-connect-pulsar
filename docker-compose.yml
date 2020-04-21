@@ -20,7 +20,7 @@
           && bin/pulsar standalone"
 
       zookeeper:
-        image: confluentinc/cp-zookeeper:5.4.0
+        image: confluentinc/cp-zookeeper:5.4.1
         hostname: zookeeper
         container_name: zookeeper
         ports:
@@ -30,7 +30,7 @@
           ZOOKEEPER_TICK_TIME: 2000
     
       kafka:
-        image: confluentinc/cp-enterprise-kafka:5.4.0
+        image: confluentinc/cp-enterprise-kafka:5.4.1
         hostname: kafka
         container_name: kafka
         depends_on:
@@ -48,7 +48,7 @@
           CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
 
       connect:
-        image: confluentinc/cp-kafka-connect:5.4.0
+        image: confluentinc/cp-kafka-connect:5.4.1
         hostname: connect
         container_name: connect
         depends_on:
@@ -77,4 +77,4 @@
           CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
           CONNECT_PLUGIN_PATH: '/usr/share/java'
         volumes:
-          - ./target/components/packages/riferrei-kafka-connect-pulsar-0.3.0/riferrei-kafka-connect-pulsar-0.3.0/lib:/usr/share/java/kafka-connect-pulsar
+          - ./target/components/packages/riferrei-kafka-connect-pulsar-0.4.0/riferrei-kafka-connect-pulsar-0.4.0/lib:/usr/share/java/kafka-connect-pulsar

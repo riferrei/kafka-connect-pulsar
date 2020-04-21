@@ -27,7 +27,7 @@
     <groupId>com.riferrei.kafka.connect</groupId>
     <artifactId>kafka-connect-pulsar</artifactId>
     <description>Kafka Connect Source Connector for Apache Pulsar</description>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 
     <licenses>
         <license>
@@ -60,12 +60,12 @@
     </issueManagement>
 
     <properties>
-        <connect.api.version>2.4.1</connect.api.version>
-        <junit.jupiter.version>5.6.0</junit.jupiter.version>
+        <connect.api.version>2.5.0</connect.api.version>
         <pulsar.client.version>2.5.0</pulsar.client.version>
+        <junit.jupiter.version>5.6.0</junit.jupiter.version>
         <apache.avro.version>1.9.2</apache.avro.version>
         <protobuf.java.version>3.11.4</protobuf.java.version>
-        <testcontainers.version>1.13.0</testcontainers.version>
+        <testcontainers.version>1.14.0</testcontainers.version>
     </properties>
 
     <dependencies>
