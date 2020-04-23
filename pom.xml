@@ -27,7 +27,7 @@
     <groupId>com.riferrei.kafka.connect</groupId>
     <artifactId>kafka-connect-pulsar</artifactId>
     <description>Kafka Connect Source Connector for Apache Pulsar</description>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
 
     <licenses>
         <license>
@@ -219,8 +219,9 @@
                             <ownerName>Ricardo Ferreira</ownerName>
                             <ownerUrl>https://riferrei.com</ownerUrl>
                             <ownerType>user</ownerType>
-                            <description>This Pulsar connector allows you to replicate data from Pulsar into Kafka using Connect.</description>
+                            <description><![CDATA[This connector allows data from Apache Pulsar® to be replicated to Apache Kafka®. It can read messages serialized as bytes and messages using specific schemas such as JSON, Avro, and Protobuf]]></description>
                             <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
+                            <logo>logos/pulsar.png</logo>
                             <componentTypes>
                                 <componentType>source</componentType>
                             </componentTypes>
