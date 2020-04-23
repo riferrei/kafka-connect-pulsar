@@ -51,15 +51,30 @@ public class TopicRegexMonitor extends Thread {
     private long pollInterval;
     private List<String> topics;
 
-    public TopicRegexMonitor(ConnectorContext context,
-        String topicRegex, String regexSubscriptionMode,
-        long pollInterval, String serviceHttpUrl) {
+    public TopicRegexMonitor(ConnectorContext context, PulsarSourceConnectorConfig config) {
+        String topicRegex = config.getString(TOPIC_REGEX_CONFIG);
+        String regexSubscriptionMode = config.getString(REGEX_SUBSCRIPTION_MODE_CONFIG);
+        long pollInterval = config.getLong(TOPIC_POLL_INTERVAL_MS_CONFIG);
+        String authPluginClassName = config.getString(AUTH_PLUGIN_CLASS_NAME_CONFIG);
+        String authParams = config.getString(AUTH_PARAMS_CONFIG);
+        String tlsTrustCertsFilePath = config.getString(TLS_TRUST_CERTS_FILE_PATH_CONFIG);
+        boolean tlsAllowInsecureConnection = config.getBoolean(TLS_ALLOW_INSECURE_CONNECTION_CONFIG);
+        boolean tlsHostnameVerificationEnabled = config.getBoolean(TLS_HOSTNAME_VERIFICATION_ENABLED_CONFIG);
+        int connectionTimeout = config.getInt(CONNECTION_TIMEOUT_MS_CONFIG);
+        int requestTimeout = config.getInt(REQUEST_TIMEOUT_MS_CONFIG);
+        String serviceHttpUrl = config.getString(SERVICE_HTTP_URL_CONFIG);
         this.context = context;
         this.topicsPattern = Pattern.compile(topicRegex);
         this.regexSubscriptionMode = RegexSubscriptionMode.valueOf(regexSubscriptionMode);
         this.pollInterval = pollInterval;
         try {
             pulsarAdmin = PulsarAdmin.builder()
+                .authentication(authPluginClassName, authParams)
+                .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
+                .allowTlsInsecureConnection(tlsAllowInsecureConnection)
+                .enableTlsHostnameVerification(tlsHostnameVerificationEnabled)
+                .connectionTimeout(connectionTimeout, TimeUnit.MILLISECONDS)
+                .requestTimeout(requestTimeout, TimeUnit.MILLISECONDS)
                 .serviceHttpUrl(serviceHttpUrl)
                 .build();
         } catch (PulsarClientException pce) {

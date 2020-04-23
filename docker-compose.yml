@@ -77,4 +77,4 @@
           CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
           CONNECT_PLUGIN_PATH: '/usr/share/java'
         volumes:
-          - ./target/components/packages/riferrei-kafka-connect-pulsar-0.5.0/riferrei-kafka-connect-pulsar-0.5.0/lib:/usr/share/java/kafka-connect-pulsar
+          - ./target/components/packages/riferrei-kafka-connect-pulsar-0.6.0/riferrei-kafka-connect-pulsar-0.6.0/lib:/usr/share/java/kafka-connect-pulsar

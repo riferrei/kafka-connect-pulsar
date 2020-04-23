@@ -89,12 +89,7 @@ public class PulsarSourceConnector extends SourceConnector {
         this.originalProps = originalProps;
         config = new PulsarSourceConnectorConfig(originalProps);
         if (config.getString(TOPIC_REGEX_CONFIG) != null) {
-            String topicRegex = config.getString(TOPIC_REGEX_CONFIG);
-            String regexSubscriptionMode = config.getString(REGEX_SUBSCRIPTION_MODE_CONFIG);
-            long pollInterval = config.getLong(TOPIC_POLL_INTERVAL_MS_CONFIG);
-            String serviceHttpUrl = config.getString(SERVICE_HTTP_URL_CONFIG);
-            topicRegexMonitor = new TopicRegexMonitor(context, topicRegex,
-                regexSubscriptionMode, pollInterval, serviceHttpUrl);
+            topicRegexMonitor = new TopicRegexMonitor(context, config);
             topicRegexMonitor.start();
         }
     }

@@ -72,9 +72,22 @@ public class PulsarSourceTask extends SourceTask {
     public void start(Map<String, String> properties) {
         config = new PulsarSourceConnectorConfig(properties);
         String serviceHttpUrl = config.getString(SERVICE_HTTP_URL_CONFIG);
+        String authPluginClassName = config.getString(AUTH_PLUGIN_CLASS_NAME_CONFIG);
+        String authParams = config.getString(AUTH_PARAMS_CONFIG);
+        String tlsTrustCertsFilePath = config.getString(TLS_TRUST_CERTS_FILE_PATH_CONFIG);
+        boolean tlsAllowInsecureConnection = config.getBoolean(TLS_ALLOW_INSECURE_CONNECTION_CONFIG);
+        boolean tlsHostnameVerificationEnabled = config.getBoolean(TLS_HOSTNAME_VERIFICATION_ENABLED_CONFIG);
+        int connectionTimeout = config.getInt(CONNECTION_TIMEOUT_MS_CONFIG);
+        int requestTimeout = config.getInt(REQUEST_TIMEOUT_MS_CONFIG);
         String serviceUrl = config.getString(SERVICE_URL_CONFIG);
         try {
             pulsarAdmin = PulsarAdmin.builder()
+                .authentication(authPluginClassName, authParams)
+                .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
+                .allowTlsInsecureConnection(tlsAllowInsecureConnection)
+                .enableTlsHostnameVerification(tlsHostnameVerificationEnabled)
+                .connectionTimeout(connectionTimeout, TimeUnit.MILLISECONDS)
+                .requestTimeout(requestTimeout, TimeUnit.MILLISECONDS)
                 .serviceHttpUrl(serviceHttpUrl)
                 .build();
             pulsarClient = PulsarClient.builder()

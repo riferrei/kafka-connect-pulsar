@@ -286,23 +286,9 @@ public abstract class AbstractBasicTest {
         complexType.setFloatField(RANDOM.nextFloat());
         complexType.setDoubleField(RANDOM.nextDouble());
 
-        /* Apparently there is a bug in Pulsar's client code for
-           Avro which complains about the map values set into the
-           records. If set, then it throws the following exception:
-           
-            org.apache.pulsar.shade.org.apache.avro.UnresolvedUnionException: Not in union
-                ["null",{"type":"array","items":{"type":"record","name":"PairCharSequenceDouble",
-                "namespace":"org.apache.pulsar.shade.org.apache.avro.reflect",
-                "fields":[{"name":"key","type":"string"},{"name":"value","type":"double"}]},
-                "java-class":"java.util.Map"}]
-
-            For this reason, the code below has been commented out
-            to allow the tests to pass. This should be revisited as
-            new versions of Pulsar are relesead. */
-
-        // Map<CharSequence, Double> mapField = new HashMap<>(1);
-        // mapField.put(String.valueOf(RANDOM.nextInt()), RANDOM.nextDouble());
-        // complexType.setMapField(mapField);
+        Map<CharSequence, Double> mapField = new HashMap<>(1);
+        mapField.put(String.valueOf(RANDOM.nextInt()), RANDOM.nextDouble());
+        complexType.setMapField(mapField);
 
         complexType.setInnerFieldBuilder(AvroGenInnerType.newBuilder()
             .setDoubleField(RANDOM.nextDouble())
