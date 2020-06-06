@@ -8,7 +8,7 @@ By using Kafka Connect to transfer data between these two tecnologies, you can e
 
 The first thing you need to do to start using this connector is building it. In order to do that, you need to install the following dependencies:
 
-- [Java 1.8+](https://openjdk.java.net/)
+- [Java 11+](https://openjdk.java.net/)
 - [Apache Maven](https://maven.apache.org/)
 
 After installing these dependencies, execute the following command:
