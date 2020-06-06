@@ -141,8 +141,7 @@
                 <version>3.8.1</version>
                 <inherited>true</inherited>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <release>11</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -207,7 +206,7 @@
             <plugin>
                 <groupId>io.confluent</groupId>
                 <artifactId>kafka-connect-maven-plugin</artifactId>
-                <version>0.11.2</version>
+                <version>0.11.3</version>
                 <executions>
                     <execution>
                         <id>hub</id>
