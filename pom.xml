@@ -63,7 +63,7 @@
         <connect.api.version>2.5.0</connect.api.version>
         <pulsar.client.version>2.7.5</pulsar.client.version>
         <junit.jupiter.version>5.6.0</junit.jupiter.version>
-        <apache.avro.version>1.9.2</apache.avro.version>
+        <apache.avro.version>1.11.3</apache.avro.version>
         <protobuf.java.version>3.16.3</protobuf.java.version>
         <testcontainers.version>1.14.0</testcontainers.version>
     </properties>
